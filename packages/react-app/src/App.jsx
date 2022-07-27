@@ -29,7 +29,7 @@ import externalContracts from "./contracts/external_contracts";
 // contracts
 import deployedContracts from "./contracts/hardhat_contracts.json";
 import { Transactor, Web3ModalSetup } from "./helpers";
-import { GameUI } from "./views";
+import { GameUI, Home } from "./views";
 import { useStaticJsonRPC } from "./hooks";
 
 const { ethers } = require("ethers");
@@ -166,8 +166,25 @@ function App(props) {
     "0x34aA3F359A9D614239015126635CE7732c18fDF3",
   ]);
 
+  console.log("address: ", address);
   // keep track of a variable from the contract in the local React state:
-  const activeGame = useContractReader(readContracts, "RockPaperScissors", "activeGame", [address]);
+  const activeGame = useContractReader(readContracts, "Morra", "activeGame", [address]);
+  console.log("activeGame App: ", activeGame);
+
+/*
+  const [activeGame, setActiveGame] = useState();
+
+  useEffect(() => {
+    const updateActiveGame = async () => {
+      if (readContracts.Morra) {
+        const activeGamefromContract = await readContracts.Morra.activeGame(address);
+        if (DEBUG) console.log("activeGamefromContract: ", activeGamefromContract);
+        setActiveGame(activeGamefromContract);
+      }
+    };
+    updateActiveGame();
+  }, [DEBUG, readContracts.Morra, address]);
+*/
 
   /*
   const addressFromENS = useResolveName(mainnetProvider, "austingriffith.eth");
@@ -200,7 +217,6 @@ function App(props) {
       console.log("🌍 DAI contract on mainnet:", mainnetContracts);
       console.log("💵 yourMainnetDAIBalance", myMainnetDAIBalance);
       console.log("🔐 writeContracts", writeContracts);
-      console.log("activeGame", activeGame);
     }
   }, [
     mainnetProvider,
@@ -213,7 +229,6 @@ function App(props) {
     mainnetContracts,
     localChainId,
     myMainnetDAIBalance,
-    activeGame,
   ]);
 
   const loadWeb3Modal = useCallback(async () => {
@@ -258,29 +273,21 @@ function App(props) {
         logoutOfWeb3Modal={logoutOfWeb3Modal}
         USE_NETWORK_SELECTOR={USE_NETWORK_SELECTOR}
       />
-      <Menu style={{ textAlign: "center", marginTop: 40 }} selectedKeys={[location.pathname]} mode="horizontal">
-        <Menu.Item key="/">
-          <Link to="/">Play Game</Link>
-        </Menu.Item>
-        <Menu.Item key="/debug">
-          <Link to="/debug">Debug Contracts</Link>
-        </Menu.Item>
-        {/* <Menu.Item key="/hints">
-          <Link to="/hints">Hints</Link>
-        </Menu.Item>
-        <Menu.Item key="/exampleui">
-          <Link to="/exampleui">ExampleUI</Link>
-        </Menu.Item>
-        <Menu.Item key="/mainnetdai">
-          <Link to="/mainnetdai">Mainnet DAI</Link>
-        </Menu.Item>
-        <Menu.Item key="/subgraph">
-          <Link to="/subgraph">Subgraph</Link>
-        </Menu.Item> */}
-      </Menu>
 
       <Switch>
         <Route exact path="/">
+          {/* pass in any web3 props to this Home component. For example, yourLocalBalance */}
+          {/* <Home yourLocalBalance={yourLocalBalance} readContracts={readContracts} /> */}
+          <Home
+            address={address}
+            mainnetProvider={mainnetProvider}
+            tx={tx}
+            writeContracts={writeContracts}
+            readContracts={readContracts}
+            DEBUG={DEBUG}
+          />
+        </Route>
+        <Route path="/game/:game">
           {/* pass in any web3 props to this Home component. For example, yourLocalBalance */}
           {/* <Home yourLocalBalance={yourLocalBalance} readContracts={readContracts} /> */}
           <GameUI
@@ -288,10 +295,10 @@ function App(props) {
             userSigner={userSigner}
             mainnetProvider={mainnetProvider}
             localProvider={localProvider}
-            activeGame={activeGame}
             tx={tx}
             writeContracts={writeContracts}
             readContracts={readContracts}
+            DEBUG={DEBUG}
           />
         </Route>
         <Route exact path="/debug">
@@ -302,7 +309,7 @@ function App(props) {
             */}
 
           <Contract
-            name="RockPaperScissors"
+            name="Morra"
             price={price}
             signer={userSigner}
             provider={localProvider}

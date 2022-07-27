@@ -1,101 +1,85 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import { Button, Divider, Input } from "antd";
+import React, { useState } from "react";
+import { GameAddress } from "../components";
 import { useContractReader } from "eth-hooks";
-import { ethers } from "ethers";
 
-/**
- * web3 props can be passed from '../App.jsx' into your local view component for use
- * @param {*} yourLocalBalance balance on current network
- * @param {*} readContracts contracts from current chain already pre-loaded using ethers contract module. More here https://docs.ethers.io/v5/api/contract/contract/
- * @returns react component
- */
-function Home({ yourLocalBalance, readContracts }) {
-  // you can also use hooks locally in your component of choice
-  // in this case, let's keep track of 'purpose' variable from our contract
-  const purpose = useContractReader(readContracts, "YourContract", "purpose");
+export default function Home({ address, mainnetProvider, tx, readContracts, writeContracts, DEBUG }) {
+  const activeGame = useContractReader(readContracts, "Morra", "activeGame", [address]);
+  console.log("activeGame: ", activeGame);
+
+  const [joinAddress, setJoinAddress] = useState();
+
+  const txnUpdate = update => {
+    console.log("📡 Transaction Update:", update);
+    if (update && (update.status === "confirmed" || update.status === 1)) {
+      console.log(" 🍾 Transaction " + update.hash + " finished!");
+      console.log(
+        " ⛽️ " +
+          update.gasUsed +
+          "/" +
+          (update.gasLimit || update.gas) +
+          " @ " +
+          parseFloat(update.gasPrice) / 1000000000 +
+          " gwei",
+      );
+    }
+  };
+  const logTxn = async result => {
+    console.log("awaiting metamask/web3 confirm result...", result);
+    console.log(await result);
+  };
+
+  const joinGame = async () => {
+    const result = tx(writeContracts.Morra.joinGame(joinAddress), txnUpdate);
+    await logTxn(result);
+  };
+  const createGame = async () => {
+    const result = tx(writeContracts.Morra.createGame(), txnUpdate);
+    await logTxn(result);
+  };
 
   return (
     <div>
-      <div style={{ margin: 32 }}>
-        <span style={{ marginRight: 8 }}>📝</span>
-        This Is Your App Home. You can start editing it in{" "}
-        <span
-          className="highlight"
-          style={{ marginLeft: 4, /* backgroundColor: "#f9f9f9", */ padding: 4, borderRadius: 4, fontWeight: "bolder" }}
-        >
-          packages/react-app/src/views/Home.jsx
-        </span>
-      </div>
-      <div style={{ margin: 32 }}>
-        <span style={{ marginRight: 8 }}>✏️</span>
-        Edit your smart contract {" "}
-        <span
-          className="highlight"
-          style={{ marginLeft: 4, /* backgroundColor: "#f9f9f9", */ padding: 4, borderRadius: 4, fontWeight: "bolder" }}
-        >
-          YourContract.sol
-        </span>{" "}in{" "}
-        <span
-          className="highlight"
-          style={{ marginLeft: 4, /* backgroundColor: "#f9f9f9", */ padding: 4, borderRadius: 4, fontWeight: "bolder" }}
-        >
-          packages/hardhat/contracts
-        </span>
-      </div>
-      {!purpose?<div style={{ margin: 32 }}>
-        <span style={{ marginRight: 8 }}>👷‍♀️</span>
-        You haven't deployed your contract yet, run
-        <span
-          className="highlight"
-          style={{ marginLeft: 4, /* backgroundColor: "#f9f9f9", */ padding: 4, borderRadius: 4, fontWeight: "bolder" }}
-        >
-          yarn chain
-        </span> and <span
-            className="highlight"
-            style={{ marginLeft: 4, /* backgroundColor: "#f9f9f9", */ padding: 4, borderRadius: 4, fontWeight: "bolder" }}
-          >
-            yarn deploy
-          </span> to deploy your first contract!
-      </div>:<div style={{ margin: 32 }}>
-        <span style={{ marginRight: 8 }}>🤓</span>
-        The "purpose" variable from your contract is{" "}
-        <span
-          className="highlight"
-          style={{ marginLeft: 4, /* backgroundColor: "#f9f9f9", */ padding: 4, borderRadius: 4, fontWeight: "bolder" }}
-        >
-          {purpose}
-        </span>
-      </div>}
-
-      <div style={{ margin: 32 }}>
-        <span style={{ marginRight: 8 }}>🤖</span>
-        An example prop of your balance{" "}
-        <span style={{ fontWeight: "bold", color: "green" }}>({ethers.utils.formatEther(yourLocalBalance)})</span> was
-        passed into the
-        <span
-          className="highlight"
-          style={{ marginLeft: 4, /* backgroundColor: "#f9f9f9", */ padding: 4, borderRadius: 4, fontWeight: "bolder" }}
-        >
-          Home.jsx
-        </span>{" "}
-        component from
-        <span
-          className="highlight"
-          style={{ marginLeft: 4, /* backgroundColor: "#f9f9f9", */ padding: 4, borderRadius: 4, fontWeight: "bolder" }}
-        >
-          App.jsx
-        </span>
-      </div>
-      <div style={{ margin: 32 }}>
-        <span style={{ marginRight: 8 }}>💭</span>
-        Check out the <Link to="/hints">"Hints"</Link> tab for more tips.
-      </div>
-      <div style={{ margin: 32 }}>
-        <span style={{ marginRight: 8 }}>🛠</span>
-        Tinker with your smart contract using the <Link to="/debug">"Debug Contract"</Link> tab.
+      <div style={{ border: "1px solid #cccccc", padding: 16, width: 500, margin: "auto", marginTop: 64 }}>
+        <h2>Play Game</h2>
+        {activeGame === "0x0000000000000000000000000000000000000000" ? (
+          <h3>-</h3>
+        ) : (
+          <>
+            <GameAddress
+              address={activeGame}
+              ensProvider={mainnetProvider}
+              fontSize={18}
+              href={"/game/" + activeGame}
+            />
+            <Divider />
+          </>
+        )}
+        <Divider />
+        <>
+          <h2>Join Game</h2>
+          <div style={{ margin: 8 }}>
+            <Input
+              placeholder="Game Address"
+              style={{ textAlign: "center" }}
+              onChange={e => {
+                setJoinAddress(e.target.value);
+              }}
+            />
+            <Button style={{ marginTop: 8 }} onClick={joinGame}>
+              Join
+            </Button>
+          </div>
+          <Divider />
+          <h2>Create new Game</h2>
+          <div style={{ margin: 8 }}>
+            <Button style={{ marginTop: 8 }} onClick={createGame}>
+              Create
+            </Button>
+          </div>
+          <Divider />
+        </>
       </div>
     </div>
   );
 }
-
-export default Home;
