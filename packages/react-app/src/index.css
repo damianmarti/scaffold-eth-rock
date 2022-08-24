@@ -6,6 +6,348 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
 }
 
+@font-face {
+    font-family: wheaton-capitals;
+    src: url("wheaton-capitals.otf") format("opentype");
+}
+
+#root {
+  margin: 0 auto;
+  background-size:cover;
+  background-position:top;
+  background-repeat:no-repeat;
+  background-image: url(images/background.png);
+  font-family: "wheaton-capitals";
+  min-height: 100%;
+  padding-bottom: 10px;
+}
+
 #root .ant-divider {
   clear: none;
+}
+
+.container {
+  border: 2px solid black;
+  border-radius: 15px;
+  width: 98%;
+  min-height: 100%;
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-start;
+  margin: 15px;
+  padding: 15px 0;
+}
+
+.scores {
+  border: 0px solid black;
+  border-radius: 30px;
+  background-color: white;
+  box-shadow: 10px 10px 0px 0px rgb(66, 61, 69);
+  width: 369px;
+  min-height: 300px;
+  position: relative;
+  margin: 15px;
+  word-wrap: break-word;
+}
+
+.corners {
+  position: absolute;
+  top: -21px;
+  left: 10px;
+  right: 0px;
+  display: flex;
+  /* height: 107%; */
+  height: calc(100% + 33px);
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.corners>ul {
+  display: flex;
+  justify-content: space-between;
+  margin-left: 5px;
+
+}
+.corners> ul> li::marker {
+  /* content: 9679; */
+  font-size: 50px;
+  color: rgb(66,61,69);
+}
+
+.content{
+  min-height: 70%;
+  margin: 50px 15px 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.scores .content, .rounds .content {
+  flex-direction: column;
+}
+
+.scores .content .points-to-win {
+  margin-top: 20px;
+  color: #d6372d;
+}
+
+.main {
+  border: 3px solid #d6382e;
+  border-radius: 15px;
+  width: 543px;
+  min-height: 760px;
+  position:relative;
+/*   box-shadow: -10px -10px 0px 0px rgba(66, 61, 69, 1),
+    10px 10px 0px 0px rgba(66, 61, 69, 1) inset; */
+    margin: 15px;
+}
+.main>.inside-main {
+  position:absolute;
+  top:-10px;
+  left:3px;
+  border: 3px solid black;
+  border-radius: 15px;
+  width: 545px;
+  min-height: 760px;
+}
+.main>.inside-main>.inside-inside-main {
+  position:absolute;
+  top:10px;
+  left:-15px;
+  border: 3px solid black;
+  border-radius: 15px;
+  width: 100%;
+  min-height: 762px;
+}
+
+.main strong, .rounds strong {
+  color: #d6372d;
+}
+
+.active-game {
+  margin-top: 5px;
+  margin-bottom: 30px;
+}
+
+.active-game h2 {
+  font-size: 30px;
+  margin-bottom: 5px;
+}
+
+.game-data h2 {
+  font-size: 20px;
+}
+
+.game-data h1 {
+  font-size: 24px;
+}
+
+.rounds {
+  border: 0px solid black;
+  border-radius: 30px;
+  background-color: white;
+  box-shadow: 10px 10px 0px 0px rgba(66, 62, 68, 1);
+  width: 453px;
+  height: 500px;
+  position: relative;
+  margin: 15px;
+}
+
+.rounds-corners {
+    position: absolute;
+    top: -21px;
+    left: 10px;
+    right: 0px;
+    display: flex;
+    /* height: 111%; */
+    height: calc(100% + 30px);
+    flex-direction: column;
+    justify-content: space-between;
+  }
+.rounds-corners>ul {
+  display: flex;
+  justify-content: space-between;
+  margin-left: 5px;
+  }
+.rounds-corners> ul> li::marker {
+  /* content: 9679; */
+  font-size: 50px;
+  color: rgb(66,61,69);
+}
+
+.rounds h3 {
+  font-size: 28px;
+  font-weight: bold;
+  color: #d6372d;
+  text-shadow: 3px 3px #000000;
+  margin-top: -50px;
+}
+
+.rounds .round-data .ant-list-item {
+  border: 2px solid #d6382e;
+  margin: 20px;
+  border-radius: 10px;
+  padding: 0;
+  position:relative;
+  width: 170px;
+  min-height: 90px;
+  margin: 10px;
+}
+
+.rounds .round-data .ant-list-item .ant-card {
+  border: 2px solid #d6382e;
+  border-radius: 10px;
+  position:absolute;
+  top: 5px;
+  left: -8px;
+  width: 170px;
+  min-height: 90px;
+  background: none;
+}
+
+.rounds .ant-list-grid .ant-col > .ant-list-item {
+  border: 2px solid #d6382e;
+}
+
+.rounds .ant-list-lg .ant-list-item {
+  padding: 0;
+}
+
+.rounds .round-data .ant-list-item .ant-card .ant-card-head {
+  border-bottom: none;
+  min-height: 30px;
+  padding: 0;
+}
+
+.rounds .round-data .ant-list-item .ant-card .ant-card-head-title {
+  padding-top: 10px;
+  padding-bottom: 0;
+}
+
+.rounds .round-data .ant-list-item .ant-card .ant-card-body {
+  padding: 10px;
+}
+
+.rounds .round-data .ant-list-item .ant-card .ant-card-body strong {
+  color: #d6372d;
+}
+
+.rounds .finished {
+  margin-top: -15px;
+}
+
+.main .ant-btn {
+  background-color: #d6372d;
+  border-color: #d6372d;
+  border-radius: 10px;
+  color: white;
+  box-shadow: 5px 5px rgb(66,61,69);
+}
+
+.main .ant-btn:hover {
+  background-color: #d43026;
+  border-color: #d43026;
+  color: rgb(66,61,69);
+}
+
+.main .hand-select {
+  background: none;
+  border: none;
+}
+
+.main .ant-input:focus {
+  border-color: #d43026;
+}
+
+.hand-select .ant-image {
+  height: 121px;
+  width: 121px;
+  padding: 0;
+  background: none;
+  border: none;
+}
+
+.main .play-button {
+  background-color: #d6372d;
+  color: white;
+  border-radius: 10px;
+  border-color: #d6372d;
+  box-shadow: 5px 5px rgb(66,61,69);
+  margin-top: 20px;
+  width: 130px;
+  height: 40px;
+  font-size: 20px;
+}
+
+.main .play-button:hover {
+  background-color: #d43026;
+  border-color: #d43026;
+  color: rgb(66,61,69);
+}
+
+#hands-play .ant-radio-button-wrapper:hover, #hands-reveal .ant-radio-button-wrapper:hover {
+  color: #d6372d;
+}
+
+#hands-play .ant-radio-button-wrapper-checked, #hands-reveal .ant-radio-button-wrapper-checked {
+  border-color: #d6372d;
+  background-color: #d6372d;
+}
+
+#hands-play .ant-radio-button-wrapper-checked::before, #hands-reveal .ant-radio-button-wrapper-checked::before {
+  background-color: #d6372d;
+}
+
+.main .commit-timeout, .main .reveal-timeout {
+  font-size: 12px;
+  width: 350px;
+  margin: 0 auto;
+}
+
+.main .commit-timeout h2, .main .reveal-timeout h2 {
+  color: #d6372d;
+}
+
+.main .commit-timeout .move-to-reveal-button, .main .reveal-timeout .finish-round-button {
+  background-color: #d6372d;
+  color: white;
+  border-radius: 10px;
+  border-color: #d6372d;
+  box-shadow: 5px 5px rgb(66,61,69);
+  margin-top: 20px;
+  height: 40px;
+  font-size: 12px;
+}
+
+.main .commit-timeout .move-to-reveal-button:hover, .main .reveal-timeout .finish-round-button:hover {
+  background-color: #d43026;
+  border-color: #d43026;
+  color: rgb(66,61,69);
+}
+
+@media screen and (max-width: 1400px) {
+
+  .main {
+    width: 405px;
+  }
+  .main>.inside-main {
+    width: 407px;
+  }
+
+  .active-game {
+    margin-bottom: 15px;
+  }
+
+  .active-game h2 {
+    font-size: 24px;
+  }
+
+  .game-data h2 {
+    font-size: 16px;
+  }
+
+  .game-data h1 {
+    font-size: 20px;
+  }
+
 }

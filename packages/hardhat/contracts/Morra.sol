@@ -1,5 +1,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
+// import "hardhat/console.sol";
+
 //SPDX-License-Identifier: MIT
 
 contract Morra {
@@ -13,40 +15,42 @@ contract Morra {
 
     struct GamePlayerStruct {
         bool initialized;
-        uint256 round;
-        GameState gameState;
-        uint256 playersCount;
-        address creator;
         bool commited;
         bool revealed;
-        uint256 commitsCount;
-        uint256 revealsCount;
-        uint256 points;
+        uint8 round;
+        uint8 playersCount;
+        uint8 commitsCount;
+        uint8 revealsCount;
+        address creator;
         address gameHash;
+        uint256 points;
+        uint256 revealDeadline;
+        uint256 commitDeadline;
+        GameState gameState;
     }
 
     struct RoundStruct {
-        uint256 commitsCount;
+        uint8 commitsCount;
+        uint8 revealsCount;
+        uint8 total;
         mapping(address => bytes32) commits;
-        uint256 revealsCount;
         mapping(address => bool) reveals;
-        mapping(address => uint8) numbers;
-        mapping(uint256 => address[]) totals;
-        uint256 total;
+        mapping(address => uint8) totals;
     }
 
     // Holds the game data for a single match
     struct GameStruct {
         bool initialized;
-        address[] playersArray;
-        mapping(address => bool) players;
-        uint256 playersCount;
-        GameState gameState;
-        uint256 round;
+        uint8 playersCount;
+        uint8 round;
         uint256 revealDeadline;
-        mapping(address => uint256) points;
+        uint256 commitDeadline;
+        address[] playersArray;
         address creator;
-        mapping(uint256 => RoundStruct) rounds;
+        mapping(address => bool) players;
+        mapping(address => uint256) points;
+        mapping(uint8 => RoundStruct) rounds;
+        GameState gameState;
     }
 
     // Maps Game address => Game data
@@ -54,14 +58,17 @@ contract Morra {
     // Maps Player address to their current 'active' game
     mapping(address => address) public activeGame;
 
-    event GameCreated(address indexed gameHash, address indexed creator);
-    event GameJoined(address indexed gameHash, address indexed player);
-    event GameStarted(address indexed gameHash);
-    event PlayerCommit(address indexed gameHash, address indexed player, uint256 indexed round, bytes32 commitHash);
-    event PlayerReveal(address indexed gameHash, address indexed player, uint256 indexed round, uint8 number, uint256 total, string salt);
-    event RoundWinner(address indexed gameHash, address indexed player, uint256 indexed round);
-    event RoundEnd(address indexed gameHash, uint256 indexed round);
-    event CommitEnd(address indexed gameHash, uint256 indexed round);
+    uint8 public constant maxPlayers = 10;
+
+    event GameCreate(address indexed gameHash, address indexed creator);
+    event GameJoin(address indexed gameHash, address indexed player);
+    event GameStart(address indexed gameHash);
+    event RoundStart(address indexed gameHash, uint8 indexed round);
+    event PlayerCommit(address indexed gameHash, address indexed player, uint8 indexed round, bytes32 commitHash);
+    event PlayerReveal(address indexed gameHash, address indexed player, uint8 indexed round, uint8 number, uint8 total, string salt);
+    event RoundEnd(address indexed gameHash, uint8 indexed round, uint8 total);
+    event CommitEnd(address indexed gameHash, uint8 indexed round);
+    event GameWinner(address indexed gameHash, address indexed player);
     event GameEnd(address indexed gameHash);
 
     /**
@@ -112,7 +119,7 @@ contract Morra {
         // Set P1 active game to game hash
         activeGame[msg.sender] = gameHash;
 
-        emit GameCreated(gameHash, msg.sender);
+        emit GameCreate(gameHash, msg.sender);
 
         // Return the game hash so it can be shared
         return gameHash;
@@ -140,6 +147,11 @@ contract Morra {
             games[gameHash].gameState == GameState.JoinPhase,
             "Game not in correct phase"
         );
+        // Check max players
+        require(
+            games[gameHash].playersCount <= maxPlayers,
+            "Game full"
+        );
 
         games[gameHash].players[msg.sender] = true;
         games[gameHash].playersArray.push(msg.sender);
@@ -148,7 +160,7 @@ contract Morra {
         // Set player active game to game hash
         activeGame[msg.sender] = gameHash;
 
-        emit GameJoined(gameHash, msg.sender);
+        emit GameJoin(gameHash, msg.sender);
     }
 
     /**
@@ -166,7 +178,8 @@ contract Morra {
 
         games[gameHash].round = 1;
 
-        emit GameStarted(gameHash);
+        emit GameStart(gameHash);
+        emit RoundStart(gameHash, games[gameHash].round);
     }
 
     /**
@@ -181,19 +194,53 @@ contract Morra {
         // Get the game hash from active game mapping
         address gameHash = activeGame[msg.sender];
 
-        if (games[gameHash].rounds[games[gameHash].round].commits[msg.sender] == bytes32(0)) {
-            games[gameHash].rounds[games[gameHash].round].commitsCount++;
+        uint8 currentRound = games[gameHash].round;
+
+        if (games[gameHash].rounds[currentRound].commits[msg.sender] == bytes32(0)) {
+            games[gameHash].rounds[currentRound].commitsCount++;
         }
 
-        games[gameHash].rounds[games[gameHash].round].commits[msg.sender] = commitHash;
+        games[gameHash].rounds[currentRound].commits[msg.sender] = commitHash;
 
-        emit PlayerCommit(gameHash, msg.sender, games[gameHash].round, commitHash);
+        emit PlayerCommit(gameHash, msg.sender, currentRound, commitHash);
 
         // If all players have committed, set game state to reveal phase
-        if (games[gameHash].rounds[games[gameHash].round].commitsCount == games[gameHash].playersCount) {
+        if (games[gameHash].rounds[currentRound].commitsCount == games[gameHash].playersCount) {
             games[gameHash].gameState = GameState.RevealPhase;
-            emit CommitEnd(gameHash, games[gameHash].round);
+            emit CommitEnd(gameHash, currentRound);
         }
+
+        if (games[gameHash].rounds[currentRound].commitsCount == 1) {
+            // Set deadline for other players to commit
+            games[gameHash].commitDeadline = block.timestamp + 3 minutes;
+        }
+    }
+
+    /**
+     * @notice Finish the commit phase after commit timeout
+     * @param gameHash gameHash to finish commit phase
+     */
+    function finishCommitPhaseAfterCommitTimeout(address gameHash)
+        public
+    {
+        // Check that the game exists
+        require(
+            games[gameHash].initialized == true,
+            "Game code does not exist"
+        );
+        // Check that game is in expected state
+        require(
+            games[gameHash].gameState == GameState.CommitPhase,
+            "Game not in commit phase"
+        );
+        // Check that we are after the commit deadline
+        require(
+            block.timestamp > games[gameHash].commitDeadline,
+            "Commit deadline not reached"
+        );
+
+        games[gameHash].gameState = GameState.RevealPhase;
+        emit CommitEnd(gameHash, games[gameHash].round);
     }
 
     /**
@@ -206,7 +253,7 @@ contract Morra {
      * @param total - the selected total number (0 to number of players * 5)
      * @param salt - a player chosen secret string from the "commit" phase used to prove their choice via a hash match
      */
-    function reveal(uint8 number, uint256 total, string memory salt)
+    function reveal(uint8 number, uint8 total, string memory salt)
         public
         validGameState(activeGame[msg.sender], GameState.RevealPhase)
     {
@@ -225,16 +272,15 @@ contract Morra {
             abi.encodePacked(number, total, salt)
         );
 
-        uint256 currentRound = games[gameHash].round;
+        uint8 currentRound = games[gameHash].round;
 
         require(
             verificationHash == games[gameHash].rounds[currentRound].commits[msg.sender],
             "Verification hash doesn't match commit hash. Salt and/or choice not the same as commit."
         );
 
-        // Save the revealed number and total
-        games[gameHash].rounds[currentRound].numbers[msg.sender] = number;
-        games[gameHash].rounds[currentRound].totals[total].push(msg.sender);
+        // Save the revealed total
+        games[gameHash].rounds[currentRound].totals[msg.sender] = total;
 
         games[gameHash].rounds[currentRound].total += number;
 
@@ -279,21 +325,28 @@ contract Morra {
     {
         RoundStruct storage currentRound = games[gameHash].rounds[games[gameHash].round];
 
-        emit RoundEnd(gameHash, games[gameHash].round);
+        emit RoundEnd(gameHash, games[gameHash].round, currentRound.total);
 
         bool finish = false;
 
-        for (uint i = 0; i < currentRound.totals[currentRound.total].length; i++) {
-            games[gameHash].points[currentRound.totals[currentRound.total][i]]++;
+        uint8 maxTotal = games[gameHash].playersCount * 5;
 
-            emit RoundWinner(gameHash, currentRound.totals[currentRound.total][i], games[gameHash].round);
+        for (uint i = 0; i < games[gameHash].playersArray.length; i++) {
+            address player = games[gameHash].playersArray[i];
+            int8 diff = int8(currentRound.total) - int8(currentRound.totals[player]);
+            if (diff < 0) {
+                diff = -diff;
+            }
+            uint8 playerPoints = maxTotal - uint8(diff);
+            games[gameHash].points[player] += playerPoints;
 
-            if (games[gameHash].points[currentRound.totals[currentRound.total][i]] == 3) {
+            if (games[gameHash].points[player] >= maxTotal * 3) {
+                emit GameWinner(gameHash, player);
                 finish = true;
             }
         }
 
-        if (games[gameHash].round == 10) {
+        if (games[gameHash].round == 5) {
             finish = true;
         }
 
@@ -303,6 +356,9 @@ contract Morra {
             emit GameEnd(gameHash);
         } else {
             games[gameHash].round++;
+
+            emit RoundStart(gameHash, games[gameHash].round);
+
             games[gameHash].gameState = GameState.CommitPhase;
         }
     }
@@ -326,7 +382,7 @@ contract Morra {
         );
         // Check that we are after the reveal deadline
         require(
-            block.timestamp < games[gameHash].revealDeadline,
+            block.timestamp > games[gameHash].revealDeadline,
             "Reveal deadline not reached"
         );
 
@@ -361,7 +417,7 @@ contract Morra {
 
         GamePlayerStruct memory gameData;
 
-        uint256 currentRoundNumber = games[gameHash].round;
+        uint8 currentRoundNumber = games[gameHash].round;
 
         gameData.initialized = games[gameHash].initialized;
         gameData.round = currentRoundNumber;
@@ -374,6 +430,8 @@ contract Morra {
         gameData.revealsCount = games[gameHash].rounds[currentRoundNumber].revealsCount;
         gameData.points = games[gameHash].points[player];
         gameData.gameHash = gameHash;
+        gameData.revealDeadline = games[gameHash].revealDeadline;
+        gameData.commitDeadline = games[gameHash].commitDeadline;
 
         return gameData;
     }

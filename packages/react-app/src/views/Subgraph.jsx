@@ -26,18 +26,37 @@ function Subgraph(props) {
 
   const EXAMPLE_GRAPHQL = `
   {
-    purposes(first: 25, orderBy: createdAt, orderDirection: desc) {
+    games(first: 25, orderBy: createdAt, orderDirection: desc) {
       id
-      purpose
+      creator
       createdAt
-      sender {
-        id
-      }
+      status
+      started
+      playersCount
+      round
     }
-    senders {
+    gamePlayers {
       id
+      game
       address
-      purposeCount
+      points
+      winner
+    }
+    gameRounds {
+      id
+      game
+      round
+      total
+    }
+    gameRoundPlayers {
+      id
+      gameRound
+      gamePlayer
+      commited
+      revealed
+      number
+      total
+      points
     }
   }
   `;

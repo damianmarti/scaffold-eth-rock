@@ -1,15 +1,43 @@
-type Purpose @entity {
-  id: ID!
-  sender: Sender!
-  purpose: String!
-  createdAt: BigInt!
-  transactionHash: String!
+enum GameStatus {
+  JoinPhase
+  CommitPhase
+  RevealPhase
+  ResultPhase
 }
 
-type Sender @entity {
+type Game @entity {
   id: ID!
-  address: Bytes!
-  purposes: [Purpose!] @derivedFrom(field: "sender")
+  creator: Bytes!
+  status: GameStatus!
+  started: Boolean!
+  playersCount: Int!
+  round: Int!
   createdAt: BigInt!
-  purposeCount: BigInt!
+  gamePlayers: [GamePlayer!] @derivedFrom(field: "game")
+}
+
+type GamePlayer @entity {
+  id: ID!
+  game: Game!
+  address: Bytes!
+  winner: Boolean!
+}
+
+type GameRound @entity {
+  id: ID!
+  game: Game!
+  round: Int!
+  total: Int
+  finished: Boolean!
+  gameRoundPlayers: [GameRoundPlayer!] @derivedFrom(field: "gameRound")
+}
+
+type GameRoundPlayer @entity {
+  id: ID!
+  gameRound: GameRound!
+  gamePlayer: GamePlayer!
+  commited: Boolean!
+  revealed: Boolean!
+  number: Int
+  total: Int
 }

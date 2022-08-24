@@ -3,11 +3,11 @@ schema:
   file: ./src/schema.graphql
 dataSources:
   - kind: ethereum/contract
-    name: YourContract
+    name: Morra
     network: localhost
     source:
-      address: "{{localhost_YourContractAddress}}"
-      abi: YourContract
+      address: "0xB0D4afd8879eD9F52b28595d31B441D079B2Ca07"
+      abi: Morra
       startBlock: 1
     mapping:
       kind: ethereum/events
@@ -17,9 +17,27 @@ dataSources:
         - Purpose
         - Sender
       abis:
-        - name: YourContract
-          file: ./abis/localhost_YourContract.json
+        - name: Morra
+          file: ./abis/localhost_Morra.json
       eventHandlers:
-        - event: SetPurpose(address,string)
-          handler: handleSetPurpose
+        - event: GameCreate(indexed address,indexed address)
+          handler: handleGameCreate
+        - event: GameJoin(indexed address,indexed address)
+          handler: handleGameJoin
+        - event: GameStart(indexed address)
+          handler: handleGameStart
+        - event: RoundStart(indexed address,indexed uint8)
+          handler: handleRoundStart
+        - event: PlayerCommit(indexed address,indexed address,indexed uint8,bytes32)
+          handler: handlePlayerCommit
+        - event: PlayerReveal(indexed address,indexed address,indexed uint8,uint8,uint8,string)
+          handler: handlePlayerReveal
+        - event: RoundEnd(indexed address,indexed uint8,uint8)
+          handler: handleRoundEnd
+        - event: CommitEnd(indexed address,indexed uint8)
+          handler: handleCommitEnd
+        - event: GameWinner(indexed address,indexed address)
+          handler: handleGameWinner
+        - event: GameEnd(indexed address)
+          handler: handleGameEnd
       file: ./src/mapping.ts

@@ -42,7 +42,6 @@ export default function Address(props) {
         <Text copyable={{ text: address }}>
           <Button
             type="link"
-            style={{ fontSize: 18, padding: 4, color: currentTheme === "light" ? "#222222" : "#ddd" }}
             onClick={() => {
               history.push(props.href);
             }}
