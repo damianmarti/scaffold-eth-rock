@@ -148,7 +148,7 @@ code {
   background-color: white;
   box-shadow: 10px 10px 0px 0px rgba(66, 62, 68, 1);
   width: 453px;
-  height: 500px;
+  min-height: 500px;
   position: relative;
   margin: 15px;
 }
@@ -255,7 +255,7 @@ code {
   border: none;
 }
 
-.main .ant-input:focus {
+.main .ant-input:focus, .main .ant-input:hover {
   border-color: #d43026;
 }
 
@@ -350,4 +350,16 @@ code {
     font-size: 20px;
   }
 
+}
+
+@media screen and (min-height: 1100px) {
+  .main {
+    min-height: 1100px;
+  }
+  .main>.inside-main {
+    min-height: 1100px;
+  }
+  .main>.inside-main>.inside-inside-main {
+    min-height: 1102px;
+  }
 }

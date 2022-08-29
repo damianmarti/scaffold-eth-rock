@@ -1,29 +1,10 @@
-import { Button, Col, Menu, Row } from "antd";
 import "antd/dist/antd.css";
-import {
-  useBalance,
-  useContractLoader,
-  useContractReader,
-  useGasPrice,
-  useOnBlock,
-  useUserProviderAndSigner,
-} from "eth-hooks";
+import { useBalance, useContractLoader, useGasPrice, useOnBlock, useUserProviderAndSigner } from "eth-hooks";
 import { useExchangeEthPrice } from "eth-hooks/dapps/dex";
 import React, { useCallback, useEffect, useState } from "react";
-import { Link, Route, Switch, useLocation } from "react-router-dom";
+import { Route, Switch } from "react-router-dom";
 import "./App.css";
-import {
-  Account,
-  Contract,
-  Faucet,
-  GasGauge,
-  Header,
-  Ramp,
-  ThemeSwitch,
-  NetworkDisplay,
-  FaucetHint,
-  NetworkSwitch,
-} from "./components";
+import { Account, Contract, Header, NetworkDisplay, FaucetHint, NetworkSwitch } from "./components";
 import { NETWORKS, ALCHEMY_KEY } from "./constants";
 import externalContracts from "./contracts/external_contracts";
 // contracts
@@ -78,7 +59,6 @@ function App(props) {
   const [injectedProvider, setInjectedProvider] = useState();
   const [address, setAddress] = useState();
   const [selectedNetwork, setSelectedNetwork] = useState(networkOptions[0]);
-  const location = useLocation();
 
   const targetNetwork = NETWORKS[selectedNetwork];
 
@@ -161,36 +141,6 @@ function App(props) {
     console.log(`⛓ A new mainnet block is here: ${mainnetProvider._lastBlockNumber}`);
   });
 
-  // Then read your DAI balance like:
-  const myMainnetDAIBalance = useContractReader(mainnetContracts, "DAI", "balanceOf", [
-    "0x34aA3F359A9D614239015126635CE7732c18fDF3",
-  ]);
-
-  console.log("address: ", address);
-  // keep track of a variable from the contract in the local React state:
-  const activeGame = useContractReader(readContracts, "Morra", "activeGame", [address]);
-  console.log("activeGame App: ", activeGame);
-
-/*
-  const [activeGame, setActiveGame] = useState();
-
-  useEffect(() => {
-    const updateActiveGame = async () => {
-      if (readContracts.Morra) {
-        const activeGamefromContract = await readContracts.Morra.activeGame(address);
-        if (DEBUG) console.log("activeGamefromContract: ", activeGamefromContract);
-        setActiveGame(activeGamefromContract);
-      }
-    };
-    updateActiveGame();
-  }, [DEBUG, readContracts.Morra, address]);
-*/
-
-  /*
-  const addressFromENS = useResolveName(mainnetProvider, "austingriffith.eth");
-  console.log("🏷 Resolved austingriffith.eth as:",addressFromENS)
-  */
-
   //
   // 🧫 DEBUG 👨🏻‍🔬
   //
@@ -215,7 +165,6 @@ function App(props) {
       console.log("💵 yourMainnetBalance", yourMainnetBalance ? ethers.utils.formatEther(yourMainnetBalance) : "...");
       console.log("📝 readContracts", readContracts);
       console.log("🌍 DAI contract on mainnet:", mainnetContracts);
-      console.log("💵 yourMainnetDAIBalance", myMainnetDAIBalance);
       console.log("🔐 writeContracts", writeContracts);
     }
   }, [
@@ -228,7 +177,6 @@ function App(props) {
     writeContracts,
     mainnetContracts,
     localChainId,
-    myMainnetDAIBalance,
   ]);
 
   const loadWeb3Modal = useCallback(async () => {
@@ -259,8 +207,6 @@ function App(props) {
     }
   }, [loadWeb3Modal]);
 
-  const faucetAvailable = localProvider && localProvider.connection && targetNetwork.name.indexOf("local") !== -1;
-
   return (
     <div className="App">
       {/* ✏️ Edit the header and change the title to your project name */}
@@ -276,8 +222,6 @@ function App(props) {
 
       <Switch>
         <Route exact path="/">
-          {/* pass in any web3 props to this Home component. For example, yourLocalBalance */}
-          {/* <Home yourLocalBalance={yourLocalBalance} readContracts={readContracts} /> */}
           <Home
             address={address}
             mainnetProvider={mainnetProvider}
@@ -288,13 +232,9 @@ function App(props) {
           />
         </Route>
         <Route path="/game/:game">
-          {/* pass in any web3 props to this Home component. For example, yourLocalBalance */}
-          {/* <Home yourLocalBalance={yourLocalBalance} readContracts={readContracts} /> */}
           <GameUI
             address={address}
-            userSigner={userSigner}
             mainnetProvider={mainnetProvider}
-            localProvider={localProvider}
             tx={tx}
             writeContracts={writeContracts}
             readContracts={readContracts}
@@ -302,12 +242,6 @@ function App(props) {
           />
         </Route>
         <Route exact path="/debug">
-          {/*
-                🎛 this scaffolding is full of commonly used components
-                this <Contract/> component will automatically parse your ABI
-                and give you a form to interact with it locally
-            */}
-
           <Contract
             name="Morra"
             price={price}
@@ -318,59 +252,6 @@ function App(props) {
             contractConfig={contractConfig}
           />
         </Route>
-        {/* <Route path="/hints">
-          <Hints
-            address={address}
-            yourLocalBalance={yourLocalBalance}
-            mainnetProvider={mainnetProvider}
-            price={price}
-          />
-        </Route>
-        <Route path="/exampleui">
-          <ExampleUI
-            address={address}
-            userSigner={userSigner}
-            mainnetProvider={mainnetProvider}
-            localProvider={localProvider}
-            yourLocalBalance={yourLocalBalance}
-            price={price}
-            tx={tx}
-            writeContracts={writeContracts}
-            readContracts={readContracts}
-            purpose={purpose}
-          />
-        </Route>
-        <Route path="/mainnetdai">
-          <Contract
-            name="DAI"
-            customContract={mainnetContracts && mainnetContracts.contracts && mainnetContracts.contracts.DAI}
-            signer={userSigner}
-            provider={mainnetProvider}
-            address={address}
-            blockExplorer="https://etherscan.io/"
-            contractConfig={contractConfig}
-            chainId={1}
-          /> */}
-        {/*
-            <Contract
-              name="UNI"
-              customContract={mainnetContracts && mainnetContracts.contracts && mainnetContracts.contracts.UNI}
-              signer={userSigner}
-              provider={mainnetProvider}
-              address={address}
-              blockExplorer="https://etherscan.io/"
-            />
-            */}
-        {/* </Route>
-        <Route path="/subgraph">
-          <Subgraph
-            subgraphUri={props.subgraphUri}
-            tx={tx}
-            writeContracts={writeContracts}
-            mainnetProvider={mainnetProvider}
-          />
-        </Route> */}
-
         <Route path="/subgraph">
           <Subgraph
             subgraphUri={props.subgraphUri}
@@ -409,46 +290,6 @@ function App(props) {
         {yourLocalBalance.lte(ethers.BigNumber.from("0")) && (
           <FaucetHint localProvider={localProvider} targetNetwork={targetNetwork} address={address} />
         )}
-      </div>
-
-      {/* 🗺 Extra UI like gas price, eth price, faucet, and support: */}
-      <div style={{ position: "fixed", textAlign: "left", left: 0, bottom: 20, padding: 10 }}>
-        <Row align="middle" gutter={[4, 4]}>
-          <Col span={8}>
-            <Ramp price={price} address={address} networks={NETWORKS} />
-          </Col>
-
-          <Col span={8} style={{ textAlign: "center", opacity: 0.8 }}>
-            <GasGauge gasPrice={gasPrice} />
-          </Col>
-          <Col span={8} style={{ textAlign: "center", opacity: 1 }}>
-            <Button
-              onClick={() => {
-                window.open("https://t.me/joinchat/KByvmRe5wkR-8F_zz6AjpA");
-              }}
-              size="large"
-              shape="round"
-            >
-              <span style={{ marginRight: 8 }} role="img" aria-label="support">
-                💬
-              </span>
-              Support
-            </Button>
-          </Col>
-        </Row>
-
-        <Row align="middle" gutter={[4, 4]}>
-          <Col span={24}>
-            {
-              /*  if the local provider has a signer, let's show the faucet:  */
-              faucetAvailable ? (
-                <Faucet localProvider={localProvider} price={price} ensProvider={mainnetProvider} />
-              ) : (
-                ""
-              )
-            }
-          </Col>
-        </Row>
       </div>
     </div>
   );

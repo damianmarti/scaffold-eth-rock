@@ -1,10 +1,11 @@
 pragma solidity >=0.8.0 <0.9.0;
 
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 // import "hardhat/console.sol";
 
 //SPDX-License-Identifier: MIT
 
-contract Morra {
+contract Morra is ReentrancyGuard {
     // 4 Game Phases: Join, Commit, Reveal, Result
     enum GameState {
         JoinPhase,
@@ -48,6 +49,7 @@ contract Morra {
         address[] playersArray;
         address creator;
         mapping(address => bool) players;
+        mapping(address => bool) withdraw;
         mapping(address => uint256) points;
         mapping(uint8 => RoundStruct) rounds;
         GameState gameState;
@@ -58,7 +60,8 @@ contract Morra {
     // Maps Player address to their current 'active' game
     mapping(address => address) public activeGame;
 
-    uint8 public constant maxPlayers = 10;
+    uint8 public constant maxPlayers = 20;
+    uint256 public constant entryFee = 1 ether;
 
     event GameCreate(address indexed gameHash, address indexed creator);
     event GameJoin(address indexed gameHash, address indexed player);
@@ -68,8 +71,8 @@ contract Morra {
     event PlayerReveal(address indexed gameHash, address indexed player, uint8 indexed round, uint8 number, uint8 total, string salt);
     event RoundEnd(address indexed gameHash, uint8 indexed round, uint8 total);
     event CommitEnd(address indexed gameHash, uint8 indexed round);
-    event GameWinner(address indexed gameHash, address indexed player);
     event GameEnd(address indexed gameHash);
+    event ClaimPrize(address indexed gameHash, address indexed player, uint256 prize);
 
     /**
      * @notice Modifier that checks game is initialized, the sender is among players
@@ -99,8 +102,10 @@ contract Morra {
     /**
      * @notice Creates a new game, generating a game hash and setting the sender as player
      */
-    function createGame() public returns (address) {
-        //
+    function createGame() public payable returns (address) {
+        // check entry fee
+        require(msg.value >= entryFee, "Not enough!");
+
         address gameHash = generateGameHash();
         require(
             !games[gameHash].initialized,
@@ -129,9 +134,9 @@ contract Morra {
      * @notice Function for other players to join a game with the game address
      * @param gameHash - game address shared by game creator
      */
-    function joinGame(address gameHash)
-        public
-    {
+    function joinGame(address gameHash) public payable {
+        // check entry fee
+        require(msg.value >= entryFee, "Not enough!");
         // Check that the game exists
         require(
             games[gameHash].initialized == true,
@@ -341,7 +346,6 @@ contract Morra {
             games[gameHash].points[player] += playerPoints;
 
             if (games[gameHash].points[player] >= maxTotal * 3) {
-                emit GameWinner(gameHash, player);
                 finish = true;
             }
         }
@@ -434,5 +438,53 @@ contract Morra {
         gameData.commitDeadline = games[gameHash].commitDeadline;
 
         return gameData;
+    }
+
+    function claimPrize(address gameHash) external nonReentrant {
+        // Check that the game exists
+        require(
+            games[gameHash].initialized == true,
+            "Game code does not exist"
+        );
+        // Check that game is in expected state
+        require(
+            games[gameHash].gameState == GameState.ResultPhase,
+            "Game not in result phase"
+        );
+
+        uint256 maxScore = 0;
+
+        for (uint i = 0; i < games[gameHash].playersArray.length; i++) {
+            address player = games[gameHash].playersArray[i];
+            if (games[gameHash].points[player] > maxScore) {
+                maxScore = games[gameHash].points[player];
+            }
+        }
+
+        uint8 playersWithMaxScoreCount = 0;
+        bool senderHasMaxScore = false;
+
+        for (uint i = 0; i < games[gameHash].playersArray.length; i++) {
+            address player = games[gameHash].playersArray[i];
+            if (games[gameHash].points[player] == maxScore) {
+                playersWithMaxScoreCount++;
+                if (player == msg.sender) {
+                    senderHasMaxScore = true;
+                }
+            }
+        }
+
+        require(senderHasMaxScore, "No winner!");
+
+        require(!games[gameHash].withdraw[msg.sender], "Already claimed!");
+
+        games[gameHash].withdraw[msg.sender] = true;
+
+        uint256 prize = entryFee * games[gameHash].playersCount / playersWithMaxScoreCount;
+
+        (bool success, ) = address(msg.sender).call{ value: prize }("");
+        require(success, "Failed to send prize");
+
+        emit ClaimPrize(gameHash, msg.sender, prize);
     }
 }

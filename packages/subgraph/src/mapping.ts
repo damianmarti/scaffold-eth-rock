@@ -8,7 +8,6 @@ import {
   PlayerReveal,
   RoundEnd,
   CommitEnd,
-  GameWinner,
   GameEnd,
 } from "../generated/Morra/Morra";
 import { Game, GamePlayer, GameRound, GameRoundPlayer } from "../generated/schema";
@@ -28,7 +27,6 @@ export function handleGameCreate(event: GameCreate): void {
   let gamePlayer = new GamePlayer(gameString + "-" + event.params.creator.toHexString());
   gamePlayer.game = gameString;
   gamePlayer.address = event.params.creator;
-  gamePlayer.winner = false;
   gamePlayer.save();
 
 /*
@@ -68,7 +66,6 @@ export function handleGameJoin(event: GameJoin): void {
     let gamePlayer = new GamePlayer(gameString + "-" + event.params.player.toHexString());
     gamePlayer.game = gameString;
     gamePlayer.address = event.params.player;
-    gamePlayer.winner = false;
     gamePlayer.save();
   }
 }
@@ -158,16 +155,6 @@ export function handleRoundEnd(event: RoundEnd): void {
     gameRound.total = event.params.total;
     gameRound.finished = true;
     gameRound.save();
-  }
-}
-
-export function handleGameWinner(event: GameWinner): void {
-  let gamePlayerString = event.params.gameHash.toHexString() + "-" + event.params.player.toHexString();
-
-  let gamePlayer = GamePlayer.load(gamePlayerString);
-  if (gamePlayer !== null) {
-    gamePlayer.winner = true;
-    gamePlayer.save();
   }
 }
 

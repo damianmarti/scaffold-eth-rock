@@ -5,6 +5,7 @@ import { useHistory } from "react-router-dom";
 
 export default function Home({ address, mainnetProvider, tx, readContracts, writeContracts, DEBUG }) {
   const [activeGame, setActiveGame] = useState();
+  const [joinAddress, setJoinAddress] = useState();
 
   const history = useHistory();
 
@@ -19,39 +20,29 @@ export default function Home({ address, mainnetProvider, tx, readContracts, writ
     updateActiveGame();
   }, [DEBUG, readContracts.Morra, address]);
 
-  const [joinAddress, setJoinAddress] = useState();
-
-  const txnUpdate = update => {
-    console.log("📡 Transaction Update:", update);
-    if (update && (update.status === "confirmed" || update.status === 1)) {
-      console.log(" 🍾 Transaction " + update.hash + " finished!");
-      console.log(
-        " ⛽️ " +
-          update.gasUsed +
-          "/" +
-          (update.gasLimit || update.gas) +
-          " @ " +
-          parseFloat(update.gasPrice) / 1000000000 +
-          " gwei",
-      );
+  const joinGame = async () => {
+    const entryFee = await readContracts.Morra.entryFee();
+    try {
+      const txCur = await tx(writeContracts.Morra.joinGame(joinAddress, { value: entryFee }));
+      await txCur.wait();
+      const activeGamefromContract = await readContracts.Morra.activeGame(address);
+      if (DEBUG) console.log("activeGamefromContract: ", activeGamefromContract);
+      history.push("/game/" + joinAddress);
+    } catch (e) {
+      console.log("Failed to join game", e);
     }
   };
-  const logTxn = async result => {
-    console.log("awaiting metamask/web3 confirm result...", result);
-    console.log(await result);
-  };
-
-  const joinGame = async () => {
-    const result = tx(writeContracts.Morra.joinGame(joinAddress), txnUpdate);
-    await logTxn(result);
-    history.push("/game/" + joinAddress);
-  };
   const createGame = async () => {
-    const result = tx(writeContracts.Morra.createGame(), txnUpdate);
-    await logTxn(result);
-    const activeGamefromContract = await readContracts.Morra.activeGame(address);
-    if (DEBUG) console.log("activeGamefromContract: ", activeGamefromContract);
-    history.push("/game/" + activeGamefromContract);
+    const entryFee = await readContracts.Morra.entryFee();
+    try {
+      const txCur = await tx(writeContracts.Morra.createGame({ value: entryFee }));
+      await txCur.wait();
+      const activeGamefromContract = await readContracts.Morra.activeGame(address);
+      if (DEBUG) console.log("activeGamefromContract: ", activeGamefromContract);
+      history.push("/game/" + activeGamefromContract);
+    } catch (e) {
+      console.log("Failed to create game", e);
+    }
   };
 
   return (
@@ -85,14 +76,14 @@ export default function Home({ address, mainnetProvider, tx, readContracts, writ
                   }}
                 />
                 <Button style={{ marginTop: 8 }} onClick={joinGame}>
-                  Join
+                  Join (1 MATIC)
                 </Button>
               </div>
               <Divider />
               <h2>Create new Game</h2>
               <div style={{ margin: 8 }}>
                 <Button style={{ marginTop: 8 }} onClick={createGame}>
-                  Create
+                  Create (1 MATIC)
                 </Button>
               </div>
               <Divider />
@@ -102,21 +93,22 @@ export default function Home({ address, mainnetProvider, tx, readContracts, writ
       </div>
       <div class="rounds">
         <div class="rounds-corners">
-            <ul >
-                <li></li>
-                <li></li>
-            </ul>
-            <ul >
-                <li></li>
-                <li></li>
-            </ul>
+          <ul>
+            <li></li>
+            <li></li>
+          </ul>
+          <ul>
+            <li></li>
+            <li></li>
+          </ul>
         </div>
         <div class="content">
           <p><strong>Morra</strong> is a hand game that dates back thousands of years to ancient Roman and Greek times.</p>
           <p>Each player simultaneously reveals their hand, extending any number of fingers, and calls out their guess at what the sum of all fingers shown will be.</p>
           <p>The score to each player is the maximum total minus the difference between the total guess and the real total.</p>
           <p>For example, if there are 3 players, the max total is 15 (5 for each one). If a user guesses 10 and the real total is 12, then the player gets 13 points (15 - (12-10)).</p>
-          <p>The first player that get (players count * 5 * 3) points wins or the best score after 5 rounds.</p>
+          <p>The first player that get (players count * 15) points wins (or the best score after 5 rounds).</p>
+          <p>Each player needs to pay an entry fee and the winner gets the pot!</p>
         </div>
       </div>
     </div>

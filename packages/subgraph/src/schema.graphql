@@ -20,7 +20,6 @@ type GamePlayer @entity {
   id: ID!
   game: Game!
   address: Bytes!
-  winner: Boolean!
 }
 
 type GameRound @entity {

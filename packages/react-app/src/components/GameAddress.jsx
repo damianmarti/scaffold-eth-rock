@@ -40,14 +40,18 @@ export default function Address(props) {
       </span>
       <span style={{ verticalAlign: "middle", paddingLeft: 5, fontSize: props.fontSize ? props.fontSize : 28 }}>
         <Text copyable={{ text: address }}>
-          <Button
-            type="link"
-            onClick={() => {
-              history.push(props.href);
-            }}
-          >
-            {displayAddress}
-          </Button>
+          {props.href ? (
+            <Button
+              type="link"
+              onClick={() => {
+                history.push(props.href);
+              }}
+            >
+              {displayAddress}
+            </Button>
+          ) : (
+            displayAddress
+          )}
         </Text>
       </span>
     </span>

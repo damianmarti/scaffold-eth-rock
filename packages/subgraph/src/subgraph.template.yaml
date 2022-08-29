@@ -4,18 +4,20 @@ schema:
 dataSources:
   - kind: ethereum/contract
     name: Morra
-    network: localhost
+    network: matic
     source:
-      address: "0xB0D4afd8879eD9F52b28595d31B441D079B2Ca07"
+      address: "0x04245F3c4bfBD6Ac69cc3508285F10fF9EDB612c"
       abi: Morra
-      startBlock: 1
+      startBlock: 27761600
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.5
       language: wasm/assemblyscript
       entities:
-        - Purpose
-        - Sender
+        - Game
+        - GamePlayer
+        - GameRound
+        - GameRoundPlayer
       abis:
         - name: Morra
           file: ./abis/localhost_Morra.json
@@ -36,8 +38,6 @@ dataSources:
           handler: handleRoundEnd
         - event: CommitEnd(indexed address,indexed uint8)
           handler: handleCommitEnd
-        - event: GameWinner(indexed address,indexed address)
-          handler: handleGameWinner
         - event: GameEnd(indexed address)
           handler: handleGameEnd
       file: ./src/mapping.ts

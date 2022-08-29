@@ -1,26 +1,14 @@
-import { SyncOutlined } from "@ant-design/icons";
-import { utils } from "ethers";
-import { Button, Card, DatePicker, Divider, Input, Row, Col, Radio, notification, InputNumber, Table, List, Image } from "antd";
+import { Button, Card, Divider, Row, Col, Radio, notification, InputNumber, Table, List, Image } from "antd";
 import React, { useState, useEffect } from "react";
 import { useParams, useHistory } from "react-router-dom";
-import { Address, Balance, Events } from "../components";
-import { useEventListener } from "eth-hooks/events/useEventListener";
+import { Address, GameAddress } from "../components";
 import humanizeDuration from "humanize-duration";
-import Text from "antd/lib/typography/Text";
 import { useContractReader } from "eth-hooks";
 import { gql, useQuery } from "@apollo/client";
 
 const { ethers } = require("ethers");
 
-export default function GameUI({
-  address,
-  mainnetProvider,
-  localProvider,
-  tx,
-  readContracts,
-  writeContracts,
-  DEBUG,
-}) {
+export default function GameUI({ address, mainnetProvider, tx, readContracts, writeContracts, DEBUG }) {
   // Possible Game States:
   const UIState = {
     NoGame: -1, // Show join / host options
@@ -29,42 +17,20 @@ export default function GameUI({
     RevealPhase: 2,
     ResultPhase: 3,
   };
-  const GameResult = {
-    None: -1, // Show join / host options
-    P1Win: 0,
-    P2Win: 1,
-    Draw: 2,
-  };
 
   const activeGame = useParams().game;
-
-  console.log("activeGame: ", activeGame);
+  if (DEBUG) console.log("activeGame: ", activeGame);
 
   const history = useHistory();
 
-  const [joinAddress, setJoinAddress] = useState();
   const [commitChoice, setCommitChoice] = useState();
   const [total, setTotal] = useState();
   const [commitSalt, setCommitSalt] = useState("");
   const [gameRoundsData, setGameRoundsData] = useState([]);
-
-/*
-  const filter = readContracts.Morra.filters.PlayerReveal(activeGame);
-
-  console.log("filter: ", filter);
-
-  const playerRevealEvents = useEventListener(readContracts, "Morra", "PlayerReveal", localProvider, 1);
-
-  console.log("playerRevealEvents: ", playerRevealEvents);
-
-  const roundEndEvents = useEventListener(readContracts, "Morra", "RoundEnd"); //, localProvider, 12686990);
-
-  console.log("roundEndEvents: ", roundEndEvents);
-
-  const playerCommitEvents = useEventListener(readContracts, "Morra", "PlayerCommit"); //, localProvider, 12686990);
-
-  console.log("playerCommitEvents: ", playerCommitEvents);
-*/
+  const [players, setPlayers] = useState([]);
+  const [pointsToWin, setPointsToWin] = useState(0);
+  const [playerData, setPlayerData] = useState();
+  const [playerJoined, setPlayerJoined] = useState(false);
 
   const ROUNDS_GRAPHQL = `
     query($gameHash: String) {
@@ -91,7 +57,7 @@ export default function GameUI({
   const ROUNDS_GQL = gql(ROUNDS_GRAPHQL);
   const roundsResult = useQuery(ROUNDS_GQL, { variables: { gameHash: activeGame.toLowerCase() }, pollInterval: 1000 });
 
-  console.log("roundsResult: ", roundsResult.data);
+  if (DEBUG) console.log("roundsResult: ", roundsResult.data);
 
   const PLAYERS_GRAPHQL = `
     query($gameHash: String) {
@@ -103,22 +69,21 @@ export default function GameUI({
   `;
 
   const PLAYERS_GQL = gql(PLAYERS_GRAPHQL);
-  const playersResult = useQuery(PLAYERS_GQL, { variables: { gameHash: activeGame.toLowerCase() }, pollInterval: 1000 });
+  const playersResult = useQuery(PLAYERS_GQL, {
+    variables: { gameHash: activeGame.toLowerCase() },
+    pollInterval: 1000,
+  });
 
-  console.log("playersResult: ", playersResult.data);
+  if (DEBUG) console.log("playersResult: ", playersResult.data);
 
-  //const activeGameData = useContractReader(readContracts, "Morra", "getActiveGameData", [address]);
-  const activeGameData = useContractReader(readContracts, "Morra", "games", [activeGame]);
-  console.log("activeGameData: ", activeGameData);
-
-  const [players, setPlayers] = useState([]);
-  const [pointsToWin, setPointsToWin] = useState(0);
+  const activeGameData = useContractReader(readContracts, "Morra", "games", [activeGame], 1000);
+  if (DEBUG) console.log("activeGameData: ", activeGameData);
 
   useEffect(() => {
     const updateRoundsData = async () => {
-      console.log("Updating rounds data...", roundsResult.data, playersResult.data);
+      if (DEBUG) console.log("Updating rounds data...", roundsResult.data, playersResult.data);
       if (playersResult.data && playersResult.data.gamePlayers.length > 0) {
-        console.log("Updating rounds data2...");
+        if (DEBUG) console.log("Updating rounds data2...");
         const roundsData = [];
         let pointsByPlayer = {};
 
@@ -155,7 +120,8 @@ export default function GameUI({
                   playerRoundData.number = playerFromRound.number;
                   playerRoundData.total = playerFromRound.total;
                   if (round.finished) {
-                    let points = playersResult.data.gamePlayers.length * 5 - Math.abs(playerFromRound.total - round.total);
+                    let points =
+                      playersResult.data.gamePlayers.length * 5 - Math.abs(playerFromRound.total - round.total);
                     playerRoundData.points = points;
                     pointsByPlayer[player.address] += points;
                   }
@@ -168,7 +134,7 @@ export default function GameUI({
             roundsData.push(roundData);
           });
 
-          console.log("roundsData: ", roundsData);
+          if (DEBUG) console.log("roundsData: ", roundsData);
           setGameRoundsData(roundsData);
         }
 
@@ -184,17 +150,17 @@ export default function GameUI({
     updateRoundsData();
   }, [DEBUG, roundsResult.data, playersResult.data]);
 
-  const [playerData, setPlayerData] = useState([]);
-
   useEffect(() => {
     const updatePlayerData = async () => {
-      console.log("Updating player data...");
+      if (DEBUG) console.log("Updating player data...");
       if (activeGameData) {
         const currentRoundData = gameRoundsData.find(roundData => roundData.round === activeGameData.round);
-        console.log("currentRoundData: ", currentRoundData);
+        if (DEBUG) console.log("currentRoundData: ", currentRoundData);
         if (currentRoundData) {
-          const currentRoundDataForPlayer = currentRoundData.players.find(playerData => playerData.address === address.toLowerCase());
-          console.log("currentRoundDataForPlayer: ", currentRoundDataForPlayer);
+          const currentRoundDataForPlayer = currentRoundData.players.find(
+            playerData => playerData.address === address.toLowerCase(),
+          );
+          if (DEBUG) console.log("currentRoundDataForPlayer: ", currentRoundDataForPlayer);
           if (currentRoundDataForPlayer) {
             setPlayerData(currentRoundDataForPlayer);
           }
@@ -207,23 +173,34 @@ export default function GameUI({
   }, [DEBUG, activeGameData, gameRoundsData, address]);
 
   useEffect(() => {
+    const updatePlayerJoined = async () => {
+      if (DEBUG) console.log("Updating player joined...");
+      if (playersResult.data && playersResult.data.gamePlayers.length > 0 && address) {
+        const joined = playersResult.data.gamePlayers.some(player => player.address === address.toLowerCase());
+        setPlayerJoined(joined);
+      }
+    };
+    updatePlayerJoined();
+  }, [DEBUG, address, playersResult.data]);
+
+  useEffect(() => {
     const updatePointsToWin = async () => {
-      console.log("Updating points to win..");
+      if (DEBUG) console.log("Updating points to win..");
       if (players && players.length > 0) {
         setPointsToWin(players.length * 5 * 3);
       }
     };
     updatePointsToWin();
-  }, [players]);
+  }, [DEBUG, players]);
 
   function getRandomString(bytes) {
     const randomValues = new Uint8Array(bytes);
     crypto.getRandomValues(randomValues);
-    return Array.from(randomValues).map(intToHex).join('');
+    return Array.from(randomValues).map(intToHex).join("");
   }
 
   function intToHex(nr) {
-    return nr.toString(16).padStart(2, '0');
+    return nr.toString(16).padStart(2, "0");
   }
 
   let revealTimeLeft;
@@ -247,23 +224,24 @@ export default function GameUI({
     gameStateMessage = playerHasCommitted ? "Waiting for other player to play" : "Waiting for you to play";
     const timestamp = Math.round(Date.now() / 1000); //TODO Change to use block timestamp
     commitTimeLeft = activeGameData.commitDeadline > timestamp ? activeGameData.commitDeadline - timestamp : 0;
-    console.log("commitTimeLeft", commitTimeLeft, typeof commitTimeLeft);
+    if (DEBUG) console.log("commitTimeLeft", commitTimeLeft, typeof commitTimeLeft);
   }
   if (currentUIState === UIState.RevealPhase) {
     gameStateMessage = playerHasRevealed ? "Waiting for other player to reveal" : "Waiting for you to reveal";
     const timestamp = Math.round(Date.now() / 1000); //TODO Change to use block timestamp
     revealTimeLeft = activeGameData.revealDeadline > timestamp ? activeGameData.revealDeadline - timestamp : 0;
-    console.log("revealTimeLeft", revealTimeLeft, typeof revealTimeLeft);
+    if (DEBUG) console.log("revealTimeLeft", revealTimeLeft, typeof revealTimeLeft);
   }
   let winners;
+  let winner = false;
   if (currentUIState === UIState.ResultPhase) {
-    console.log("players: ", players);
+    if (DEBUG) console.log("players: ", players);
     const maxPoints = Math.max(
       ...players.map(function (player) {
         return player.points;
       }),
     );
-    console.log("maxPoints: ", maxPoints);
+    if (DEBUG) console.log("maxPoints: ", maxPoints);
     const playersWithMaxPoints = players.filter(function (player) {
       return player.points === maxPoints;
     });
@@ -273,42 +251,45 @@ export default function GameUI({
         return player.address;
       });
 
-    console.log("winners: ", winners);
+    if (DEBUG) console.log("winners: ", winners);
 
     if (address && winners.includes(address.toLowerCase())) {
-      gameStateMessage = <Image src='/images/win.png' alt='You Win!' title='You Win!' />;
+      winner = true;
+      gameStateMessage = <Image preview={false} src="/images/win.png" alt="You Win!" title="You Win!" />;
     } else {
-      gameStateMessage = <Image src='/images/lost.png' alt='You Win!' title='You Win!' />;
+      gameStateMessage = <Image preview={false} src="/images/lost.png" alt="You Lost!" title="You Lost!" />;
     }
   }
 
   const txnUpdate = update => {
-    console.log("📡 Transaction Update:", update);
+    if (DEBUG) console.log("📡 Transaction Update:", update);
     if (update && (update.status === "confirmed" || update.status === 1)) {
-      console.log(" 🍾 Transaction " + update.hash + " finished!");
-      console.log(
-        " ⛽️ " +
-          update.gasUsed +
-          "/" +
-          (update.gasLimit || update.gas) +
-          " @ " +
-          parseFloat(update.gasPrice) / 1000000000 +
-          " gwei",
-      );
+      if (DEBUG) console.log(" 🍾 Transaction " + update.hash + " finished!");
+      if (DEBUG)
+        console.log(
+          " ⛽️ " +
+            update.gasUsed +
+            "/" +
+            (update.gasLimit || update.gas) +
+            " @ " +
+            parseFloat(update.gasPrice) / 1000000000 +
+            " gwei",
+        );
     }
   };
   const logTxn = async result => {
-    console.log("awaiting metamask/web3 confirm result...", result);
-    console.log(await result);
+    if (DEBUG) console.log("awaiting metamask/web3 confirm result...", result);
+    if (DEBUG) console.log(await result);
   };
 
   const joinGame = async () => {
-    const result = tx(writeContracts.Morra.joinGame(joinAddress), txnUpdate);
-    await logTxn(result);
-  };
-  const createGame = async () => {
-    const result = tx(writeContracts.Morra.createGame(), txnUpdate);
-    await logTxn(result);
+    const entryFee = await readContracts.Morra.entryFee();
+    try {
+      const txCur = await tx(writeContracts.Morra.joinGame(activeGame, { value: entryFee }));
+      await txCur.wait();
+    } catch (e) {
+      console.log("Failed to join game", e);
+    }
   };
   const startGame = async () => {
     const result = tx(writeContracts.Morra.startGame(activeGame), txnUpdate);
@@ -335,7 +316,7 @@ export default function GameUI({
 
     const hash = ethers.utils.solidityKeccak256(["uint8", "uint8", "string"], [commitChoice, total, password]);
 
-    const result = tx(writeContracts.Morra.commit(hash), txnUpdate);
+    const result = tx(writeContracts.Morra.commit(hash, { gasLimit: 300000 }), txnUpdate);
     await logTxn(result);
   };
   const reveal = async () => {
@@ -353,15 +334,15 @@ export default function GameUI({
       });
       return;
     }
-    const result = tx(writeContracts.Morra.reveal(commitChoice, total, commitSalt), txnUpdate);
+    const result = tx(writeContracts.Morra.reveal(commitChoice, total, commitSalt, { gasLimit: 300000 }), txnUpdate);
     await logTxn(result);
   };
   const finishRound = async () => {
-    const result = tx(writeContracts.Morra.determineWinnersAfterRevealTimeout(activeGame), txnUpdate);
+    const result = tx(writeContracts.Morra.determineWinnersAfterRevealTimeout(activeGame, { gasLimit: 300000 }), txnUpdate);
     await logTxn(result);
   };
   const finishCommit = async () => {
-    const result = tx(writeContracts.Morra.finishCommitPhaseAfterCommitTimeout(activeGame), txnUpdate);
+    const result = tx(writeContracts.Morra.finishCommitPhaseAfterCommitTimeout(activeGame, { gasLimit: 300000 }), txnUpdate);
     await logTxn(result);
   };
   const leaveGame = async () => {
@@ -369,9 +350,12 @@ export default function GameUI({
     await logTxn(result);
     history.push("/");
   };
+  const claimPrize = async () => {
+    const result = tx(writeContracts.Morra.claimPrize(activeGame, { gasLimit: 300000 }), txnUpdate);
+    await logTxn(result);
+  };
 
   const handleChangeTotal = value => {
-    console.log("Total: ", value);
     setTotal(value);
   };
 
@@ -400,21 +384,18 @@ export default function GameUI({
   ];
 
   useEffect(() => {
-    console.log("commitChoice: ", commitChoice);
     if (typeof commitChoice !== "undefined") {
       localStorage.setItem("commitChoice", JSON.stringify(commitChoice));
     }
   }, [commitChoice]);
 
   useEffect(() => {
-    console.log("total: ", total);
     if (typeof total !== "undefined") {
       localStorage.setItem("total", JSON.stringify(total));
     }
   }, [total]);
 
   useEffect(() => {
-    console.log("commitSalt: ", commitSalt);
     if (typeof commitSalt !== "undefined" && commitSalt !== "") {
       localStorage.setItem("commitSalt", JSON.stringify(commitSalt));
     }
@@ -422,7 +403,6 @@ export default function GameUI({
 
   useEffect(() => {
     const commitChoiceText = localStorage.getItem("commitChoice");
-    console.log("commitChoiceText: ", commitChoiceText);
     if (commitChoiceText !== "undefined") {
       const commitChoiceFromStorage = JSON.parse(commitChoiceText);
       if (commitChoiceFromStorage) {
@@ -430,7 +410,6 @@ export default function GameUI({
       }
     }
     const totalFromStorageText = localStorage.getItem("total");
-    console.log("totalFromStorageText: ", totalFromStorageText);
     if (totalFromStorageText !== "undefined") {
       const totalFromStorage = JSON.parse(totalFromStorageText);
       if (totalFromStorage) {
@@ -438,7 +417,6 @@ export default function GameUI({
       }
     }
     const commitSaltText = localStorage.getItem("commitSalt");
-    console.log("commitSaltText: ", commitSaltText);
     if (commitSaltText !== "undefined") {
       const commitSaltFromStorage = JSON.parse(commitSaltText);
       if (commitSaltFromStorage) {
@@ -451,23 +429,17 @@ export default function GameUI({
     <div class="container">
       <div class="scores">
         <div class="corners">
-          <ul >
-              <li></li>
-              <li></li>
+          <ul>
+            <li></li>
+            <li></li>
           </ul>
-          <ul >
-              <li></li>
-              <li></li>
+          <ul>
+            <li></li>
+            <li></li>
           </ul>
         </div>
         <div class="content">
-          {players && (
-            <Table
-              dataSource={players}
-              columns={playersColumns}
-              pagination={false}
-            />
-          )}
+          {players && <Table dataSource={players} columns={playersColumns} pagination={false} />}
           <div className="points-to-win">*{pointsToWin} points to win or best of 5 rounds*</div>
         </div>
       </div>
@@ -479,45 +451,33 @@ export default function GameUI({
               {activeGame === "0x0000000000000000000000000000000000000000" || !activeGameData ? (
                 <h3>-</h3>
               ) : (
-                <>
-                  <Address address={activeGame} ensProvider={mainnetProvider} fontSize={18} />
-                </>
+                <GameAddress address={activeGame} ensProvider={mainnetProvider} fontSize={18} />
               )}
             </div>
             {currentUIState === UIState.NoGame && (
               <>
-                <h2>Join Game</h2>
-                <div style={{ margin: 8 }}>
-                  <Input
-                    placeholder="Game Address"
-                    style={{ textAlign: "center" }}
-                    onChange={e => {
-                      setJoinAddress(e.target.value);
-                    }}
-                  />
-                  <Button style={{ marginTop: 8 }} onClick={joinGame}>
-                    Join
-                  </Button>
-                </div>
-                <Divider />
-                <h2>Create new Game</h2>
-                <div style={{ margin: 8 }}>
-                  <Button style={{ marginTop: 8 }} onClick={createGame}>
-                    Create
-                  </Button>
-                </div>
-                <Divider />
+                <h2>Game not found!</h2>
               </>
             )}
             {currentUIState === UIState.JoinPhase && (
               <>
                 <h1>{gameStateMessage}</h1>
 
-                <h3>Send them the game address above so they can join</h3>
+                {playerJoined ? (
+                  <h3>Send them the game address above so they can join</h3>
+                ) : (
+                  <Button style={{ marginTop: 8 }} onClick={joinGame}>
+                    Join (1 MATIC)
+                  </Button>
+                )}
 
                 {activeGameData.creator === address && (
                   <div style={{ margin: 8 }}>
-                    <Button type="primary" style={{ marginTop: 8, marginBottom: 20, width: 250, height: 50, fontSize: 24 }} onClick={startGame}>
+                    <Button
+                      type="primary"
+                      style={{ marginTop: 8, marginBottom: 20, width: 250, height: 50, fontSize: 24 }}
+                      onClick={startGame}
+                    >
                       Start
                     </Button>
                   </div>
@@ -685,7 +645,6 @@ export default function GameUI({
                             marginRight: 10,
                             marginTop: 10,
                           }}
-                          onChange={e => setCommitChoice(e.target.value)}
                         >
                           <Image preview={false} src={"/images/hands/0.png"} alt="0" title="0" />
                           <div style={{ position: "absolute", top: 85, right: 5, fontSize: 20 }}>0</div>
@@ -700,7 +659,6 @@ export default function GameUI({
                             marginRight: 10,
                             marginTop: 10,
                           }}
-                          onChange={e => setCommitChoice(e.target.value)}
                         >
                           <Image preview={false} src={"/images/hands/1.png"} alt="1" title="1" />
                           <div style={{ position: "absolute", top: 85, right: 5, fontSize: 20 }}>1</div>
@@ -715,7 +673,6 @@ export default function GameUI({
                             marginRight: 10,
                             marginTop: 10,
                           }}
-                          onChange={e => setCommitChoice(e.target.value)}
                         >
                           <Image preview={false} src={"/images/hands/2.png"} alt="2" title="2" />
                           <div style={{ position: "absolute", top: 85, right: 5, fontSize: 20 }}>2</div>
@@ -730,7 +687,6 @@ export default function GameUI({
                             marginRight: 10,
                             marginTop: 10,
                           }}
-                          onChange={e => setCommitChoice(e.target.value)}
                         >
                           <Image preview={false} src={"/images/hands/3.png"} alt="3" title="3" />
                           <div style={{ position: "absolute", top: 85, right: 5, fontSize: 20 }}>3</div>
@@ -745,7 +701,6 @@ export default function GameUI({
                             marginRight: 10,
                             marginTop: 10,
                           }}
-                          onChange={e => setCommitChoice(e.target.value)}
                         >
                           <Image preview={false} src={"/images/hands/4.png"} alt="4" title="4" />
                           <div style={{ position: "absolute", top: 85, right: 5, fontSize: 20 }}>4</div>
@@ -760,7 +715,6 @@ export default function GameUI({
                             marginRight: 10,
                             marginTop: 10,
                           }}
-                          onChange={e => setCommitChoice(e.target.value)}
                         >
                           <Image preview={false} src={"/images/hands/5.png"} alt="5" title="5" />
                           <div style={{ position: "absolute", top: 85, right: 5, fontSize: 20 }}>5</div>
@@ -769,14 +723,7 @@ export default function GameUI({
                       <div style={{ display: "flex", marginTop: 30, justifyContent: "center" }}>
                         <div style={{ margin: 0, width: 150 }}>
                           <label style={{ fontSize: 20 }}>Your guess</label>
-                          <InputNumber
-                            value={total}
-                            min="0"
-                            max="100"
-                            step="1"
-                            placeholder="Total"
-                            disabled={true}
-                          />
+                          <InputNumber value={total} min="0" max="200" step="1" placeholder="Total" disabled={true} />
                         </div>
                         <div style={{ margin: 0, width: 150 }}>
                           <Button className="play-button" onClick={reveal}>
@@ -807,22 +754,38 @@ export default function GameUI({
             {currentUIState === UIState.ResultPhase && (
               <>
                 <div style={{ margin: 8 }}>
-                  <h2>Your Points: <strong>{address && players.find(player => player.address === address.toLowerCase()).points}</strong></h2>
-                  <h1>{gameStateMessage}</h1>
+                  <h2>
+                    Your Points:
+                    <strong>
+                      {address && players.find(player => player.address === address.toLowerCase())?.points}
+                    </strong>
+                  </h2>
+                  <h1 style={{ marginBottom: 0 }}>{gameStateMessage}</h1>
+                  {winner && (
+                    <Button style={{ marginTop: 8 }} onClick={claimPrize}>
+                      Claim Prize 💰
+                    </Button>
+                  )}
                 </div>
-                <div style={{ margin: 8 }}>
+                <div style={{ margin: 20 }}>
                   <h3>Winners</h3>
                   <Row>
-                    {winners && winners.map(function(player, i) {
-                      return (
-                        <Col
-                          span={12}
-                          style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}
-                        >
-                          <Address address={player} ensProvider={mainnetProvider} fontSize={14} />
-                        </Col>
-                      )
-                    })}
+                    {winners &&
+                      winners.map(function (player, i) {
+                        return (
+                          <Col
+                            span={12}
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              justifyContent: "center",
+                              alignItems: "center",
+                            }}
+                          >
+                            <Address address={player} ensProvider={mainnetProvider} fontSize={14} />
+                          </Col>
+                        );
+                      })}
                   </Row>
                 </div>
                 <Divider />
@@ -836,14 +799,14 @@ export default function GameUI({
       </div>
       <div class="rounds">
         <div class="rounds-corners">
-            <ul >
-                <li></li>
-                <li></li>
-            </ul>
-            <ul >
-                <li></li>
-                <li></li>
-            </ul>
+          <ul>
+            <li></li>
+            <li></li>
+          </ul>
+          <ul>
+            <li></li>
+            <li></li>
+          </ul>
         </div>
         <div class="content">
           <List
@@ -863,20 +826,36 @@ export default function GameUI({
                   dataSource={item.players}
                   renderItem={player => (
                     <List.Item>
-                      <Card title={
-                        <Row
-                          span={12}
-                          style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}
-                        >
-                          <Address noCopy={true} value={player.address} ensProvider={mainnetProvider} fontSize={12} />
-                        </Row>
-                      }>
+                      <Card
+                        title={
+                          <Row
+                            span={12}
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              justifyContent: "center",
+                              alignItems: "center",
+                            }}
+                          >
+                            <Address noCopy={true} value={player.address} ensProvider={mainnetProvider} fontSize={12} />
+                          </Row>
+                        }
+                      >
                         {item.finished && player.revealed && (
-                          <div class="finished"><Image style={{width: 20 }} src={"/images/hands/"+player.number+".png"} alt={player.number} title={player.number} /> Total: {player.total} (<strong>{player.points}</strong>)</div>
+                          <div class="finished">
+                            <Image
+                              preview={false}
+                              style={{ height: 30, marginTop: 7 }}
+                              src={"/images/hands/" + player.number + ".png"}
+                              alt={player.number}
+                              title={player.number}
+                            />
+                            <span style={{ marginLeft: 5 }}>
+                              Total: {player.total} (<strong>{player.points}</strong>)
+                            </span>
+                          </div>
                         )}
-                        {item.finished && !player.revealed && (
-                          <span class="noplayed">No played!</span>
-                        )}
+                        {item.finished && !player.revealed && <span class="noplayed">No played!</span>}
                         {!item.finished && currentUIState === UIState.CommitPhase && player.commited && (
                           <span class="commited">Played</span>
                         )}
