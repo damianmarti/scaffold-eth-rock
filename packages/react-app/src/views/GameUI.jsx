@@ -16,7 +16,6 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
     CommitPhase: "CommitPhase",
     RevealPhase: "RevealPhase",
     ResultPhase: "ResultPhase",
-    WaitingPhase: "WaitingPhase",
   };
 
   const activeGame = useParams().game;
@@ -235,9 +234,6 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
           }
         } else {
           setPlayerData(null);
-          if (currentUIState !== UIState.JoinPhase) {
-            setCurrentUIState("WaitingPhase");
-          }
         }
       }
     };
@@ -313,6 +309,9 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
   if (playerData) {
     playerHasCommitted = playerData.commited;
     playerHasRevealed = playerData.revealed;
+  } else {
+    playerHasCommitted = true;
+    playerHasRevealed = true;
   }
   let gameStateMessage = "";
   if (activeGameData) {
@@ -560,11 +559,6 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
             {currentUIState === UIState.NoGame && (
               <>
                 <h2>Game not found!</h2>
-              </>
-            )}
-            {currentUIState === UIState.WaitingPhase && (
-              <>
-                <h2>Loading data...</h2>
               </>
             )}
             {currentUIState === UIState.JoinPhase && (
