@@ -338,15 +338,17 @@ contract Morra is ReentrancyGuard {
 
         for (uint i = 0; i < games[gameHash].playersArray.length; i++) {
             address player = games[gameHash].playersArray[i];
-            int8 diff = int8(currentRound.total) - int8(currentRound.totals[player]);
-            if (diff < 0) {
-                diff = -diff;
-            }
-            uint8 playerPoints = maxTotal - uint8(diff);
-            games[gameHash].points[player] += playerPoints;
+            if (currentRound.reveals[player]) {
+                int8 diff = int8(currentRound.total) - int8(currentRound.totals[player]);
+                if (diff < 0) {
+                    diff = -diff;
+                }
+                uint8 playerPoints = maxTotal - uint8(diff);
+                games[gameHash].points[player] += playerPoints;
 
-            if (games[gameHash].points[player] >= maxTotal * 3) {
-                finish = true;
+                if (games[gameHash].points[player] >= maxTotal * 3) {
+                    finish = true;
+                }
             }
         }
 
