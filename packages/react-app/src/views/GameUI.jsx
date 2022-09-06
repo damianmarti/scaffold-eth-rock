@@ -1,4 +1,4 @@
-import { Button, Card, Divider, Row, Col, Radio, notification, InputNumber, Table, List, Image } from "antd";
+import { Button, Card, Divider, Row, Col, Radio, notification, InputNumber, Table, List, Image, Modal, Popconfirm } from "antd";
 import React, { useState, useEffect } from "react";
 import { useParams, useHistory } from "react-router-dom";
 import { Address, GameAddress } from "../components";
@@ -12,10 +12,11 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
   // Possible Game States:
   const UIState = {
     NoGame: -1, // Show join / host options
-    JoinPhase: 0,
-    CommitPhase: 1,
-    RevealPhase: 2,
-    ResultPhase: 3,
+    JoinPhase: "JoinPhase",
+    CommitPhase: "CommitPhase",
+    RevealPhase: "RevealPhase",
+    ResultPhase: "ResultPhase",
+    WaitingPhase: "WaitingPhase",
   };
 
   const activeGame = useParams().game;
@@ -31,23 +32,79 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
   const [pointsToWin, setPointsToWin] = useState(0);
   const [playerData, setPlayerData] = useState();
   const [playerJoined, setPlayerJoined] = useState(false);
+  const [roundsCurrentPage, setRoundsCurrentPage] = useState(1);
+  const [isFinishRoundModalVisible, setIsFinishRoundModalVisible] = useState(false);
+  const [finishRoundModalTitle, setFinishRoundModalTitle] = useState("");
+  const [endedRoundData, setEndedRoundData] = useState();
+  const [activeGameFromContract, setActiveGameFromContract] = useState();
+  const [commitDisabled, setCommitDisabled] = useState(false);
+  const [revealDisabled, setRevealDisabled] = useState(false);
+  const [currentUIState, setCurrentUIState] = useState(UIState.NoGame);
+
+  let revealTimeLeft = 180;
+  let commitTimeLeft = 180;
+  let playerHasCommitted = false;
+  let playerHasRevealed = false;
+
+  useEffect(() => {
+    const updateActiveGameFromContract = async () => {
+      if (readContracts.Morra) {
+        const activeGamefromContractValue = await readContracts.Morra.activeGame(address);
+        if (DEBUG) console.log("activeGamefromContractValue: ", activeGamefromContractValue);
+        setActiveGameFromContract(activeGamefromContractValue);
+      }
+    };
+    updateActiveGameFromContract();
+  }, [DEBUG, readContracts.Morra, address]);
+
+  const showFinishRoundModal = () => {
+    setIsFinishRoundModalVisible(true);
+  };
+
+  const handleFinishRoundModalOk = () => {
+    setIsFinishRoundModalVisible(false);
+  };
+
+/*
+  const GAME_GRAPHQL = `
+    query($gameHash: String) {
+      game(id: $gameHash) {
+        id
+        creator
+        status
+        started
+      }
+    }
+  `;
+
+  const GAME_GQL = gql(GAME_GRAPHQL);
+  const gameResult = useQuery(GAME_GQL, { variables: { gameHash: activeGame.toLowerCase() }, pollInterval: 500 });
+
+  if (DEBUG) console.log("gameResult: ", gameResult.data);
+*/
 
   const ROUNDS_GRAPHQL = `
     query($gameHash: String) {
-      gameRounds(where: {game: $gameHash}) {
+      game(id: $gameHash) {
         id
-        round
-        total
-        finished
-        gameRoundPlayers {
+        creator
+        status
+        started
+        gameRounds {
           id
-          commited
-          revealed
-          number
+          round
           total
-          gamePlayer {
+          finished
+          gameRoundPlayers {
             id
-            address
+            commited
+            revealed
+            number
+            total
+            gamePlayer {
+              id
+              address
+            }
           }
         }
       }
@@ -55,7 +112,7 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
   `;
 
   const ROUNDS_GQL = gql(ROUNDS_GRAPHQL);
-  const roundsResult = useQuery(ROUNDS_GQL, { variables: { gameHash: activeGame.toLowerCase() }, pollInterval: 1000 });
+  const roundsResult = useQuery(ROUNDS_GQL, { variables: { gameHash: activeGame.toLowerCase() }, pollInterval: 500 });
 
   if (DEBUG) console.log("roundsResult: ", roundsResult.data);
 
@@ -71,13 +128,25 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
   const PLAYERS_GQL = gql(PLAYERS_GRAPHQL);
   const playersResult = useQuery(PLAYERS_GQL, {
     variables: { gameHash: activeGame.toLowerCase() },
-    pollInterval: 1000,
+    pollInterval: 500,
   });
 
   if (DEBUG) console.log("playersResult: ", playersResult.data);
 
-  const activeGameData = useContractReader(readContracts, "Morra", "games", [activeGame], 1000);
+  const activeGameData = useContractReader(readContracts, "Morra", "games", [activeGame], 500);
   if (DEBUG) console.log("activeGameData: ", activeGameData);
+
+  useEffect(() => {
+    const updateCurrentUIState = async () => {
+      if (DEBUG) console.log("Updating current UI state...");
+      if (roundsResult && roundsResult.data && roundsResult.data.game) {
+        if (roundsResult.data.game) {
+          setCurrentUIState(roundsResult.data.game.status);
+        }
+      }
+    };
+    updateCurrentUIState();
+  }, [DEBUG, roundsResult && roundsResult.data]);
 
   useEffect(() => {
     const updateRoundsData = async () => {
@@ -91,8 +160,8 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
           pointsByPlayer[player.address] = 0;
         });
 
-        if (roundsResult.data && roundsResult.data.gameRounds.length > 0) {
-          roundsResult.data.gameRounds.forEach(function (round) {
+        if (roundsResult.data && roundsResult.data.game && roundsResult.data.game.gameRounds.length > 0) {
+          roundsResult.data.game.gameRounds.forEach(function (round) {
             let roundData = { round: round.round, total: round.total, finished: round.finished };
 
             let playersByAddress = {};
@@ -166,6 +235,9 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
           }
         } else {
           setPlayerData(null);
+          if (currentUIState !== UIState.JoinPhase) {
+            setCurrentUIState("WaitingPhase");
+          }
         }
       }
     };
@@ -193,6 +265,33 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
     updatePointsToWin();
   }, [DEBUG, players]);
 
+  useEffect(() => {
+    const updateRoundsCurrentPage = async () => {
+      if (DEBUG) console.log("Updating rounds pagination..");
+      if (
+        (currentUIState === UIState.ResultPhase || currentUIState === UIState.CommitPhase) &&
+        gameRoundsData.length > 0
+      ) {
+        const currentRound = gameRoundsData[gameRoundsData.length - 1].round;
+        if (DEBUG) console.log("Updating rounds pagination: ", currentRound);
+        setRoundsCurrentPage(currentRound);
+        if (currentRound > 1) {
+          let endedRound;
+          if (currentUIState === UIState.ResultPhase) {
+            endedRound = currentRound;
+          } else {
+            endedRound = currentRound - 1;
+          }
+          setFinishRoundModalTitle("Round " + endedRound + " Ended");
+          const roundData = gameRoundsData.find(item => item.round === endedRound);
+          setEndedRoundData(roundData);
+          showFinishRoundModal();
+        }
+      }
+    };
+    updateRoundsCurrentPage();
+  }, [DEBUG, currentUIState]);
+
   function getRandomString(bytes) {
     const randomValues = new Uint8Array(bytes);
     crypto.getRandomValues(randomValues);
@@ -203,34 +302,33 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
     return nr.toString(16).padStart(2, "0");
   }
 
-  let revealTimeLeft;
-  let commitTimeLeft;
-  let playerHasCommitted = false;
-  let playerHasRevealed = false;
-  let currentUIState = UIState.NoGame;
+  /*
   if (activeGameData) {
     const { initialized, gameState } = activeGameData;
     if (initialized) {
       currentUIState = gameState;
     }
   }
+  */
   if (playerData) {
     playerHasCommitted = playerData.commited;
     playerHasRevealed = playerData.revealed;
   }
   let gameStateMessage = "";
-  if (currentUIState === UIState.JoinPhase) gameStateMessage = "Waiting for players to join";
-  if (currentUIState === UIState.CommitPhase) {
-    gameStateMessage = playerHasCommitted ? "Waiting for other player to play" : "Waiting for you to play";
-    const timestamp = Math.round(Date.now() / 1000); //TODO Change to use block timestamp
-    commitTimeLeft = activeGameData.commitDeadline > timestamp ? activeGameData.commitDeadline - timestamp : 0;
-    if (DEBUG) console.log("commitTimeLeft", commitTimeLeft, typeof commitTimeLeft);
-  }
-  if (currentUIState === UIState.RevealPhase) {
-    gameStateMessage = playerHasRevealed ? "Waiting for other player to reveal" : "Waiting for you to reveal";
-    const timestamp = Math.round(Date.now() / 1000); //TODO Change to use block timestamp
-    revealTimeLeft = activeGameData.revealDeadline > timestamp ? activeGameData.revealDeadline - timestamp : 0;
-    if (DEBUG) console.log("revealTimeLeft", revealTimeLeft, typeof revealTimeLeft);
+  if (activeGameData) {
+    if (currentUIState === UIState.JoinPhase) gameStateMessage = "Waiting for players to join";
+    if (currentUIState === UIState.CommitPhase) {
+      gameStateMessage = playerHasCommitted ? "Waiting for other player to play" : "Waiting for you to play";
+      const timestamp = Math.round(Date.now() / 1000); //TODO Change to use block timestamp
+      commitTimeLeft = activeGameData.commitDeadline > timestamp ? activeGameData.commitDeadline - timestamp : 0;
+      if (DEBUG) console.log("commitTimeLeft", commitTimeLeft, typeof commitTimeLeft);
+    }
+    if (currentUIState === UIState.RevealPhase) {
+      gameStateMessage = playerHasRevealed ? "Waiting for other player to reveal" : "Waiting for you to reveal";
+      const timestamp = Math.round(Date.now() / 1000); //TODO Change to use block timestamp
+      revealTimeLeft = activeGameData.revealDeadline > timestamp ? activeGameData.revealDeadline - timestamp : 0;
+      if (DEBUG) console.log("revealTimeLeft", revealTimeLeft, typeof revealTimeLeft);
+    }
   }
   let winners;
   let winner = false;
@@ -316,8 +414,10 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
 
     const hash = ethers.utils.solidityKeccak256(["uint8", "uint8", "string"], [commitChoice, total, password]);
 
+    setCommitDisabled(true);
     const result = tx(writeContracts.Morra.commit(hash, { gasLimit: 300000 }), txnUpdate);
     await logTxn(result);
+    setCommitDisabled(false);
   };
   const reveal = async () => {
     if (!commitChoice) {
@@ -334,8 +434,11 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
       });
       return;
     }
+
+    setRevealDisabled(true);
     const result = tx(writeContracts.Morra.reveal(commitChoice, total, commitSalt, { gasLimit: 300000 }), txnUpdate);
     await logTxn(result);
+    setRevealDisabled(false);
   };
   const finishRound = async () => {
     const result = tx(writeContracts.Morra.determineWinnersAfterRevealTimeout(activeGame, { gasLimit: 300000 }), txnUpdate);
@@ -346,8 +449,8 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
     await logTxn(result);
   };
   const leaveGame = async () => {
-    const result = tx(writeContracts.Morra.leaveGame(), txnUpdate);
-    await logTxn(result);
+    // const result = tx(writeContracts.Morra.leaveGame(), txnUpdate);
+    // await logTxn(result);
     history.push("/");
   };
   const claimPrize = async () => {
@@ -459,19 +562,32 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
                 <h2>Game not found!</h2>
               </>
             )}
+            {currentUIState === UIState.WaitingPhase && (
+              <>
+                <h2>Loading data...</h2>
+              </>
+            )}
             {currentUIState === UIState.JoinPhase && (
               <>
                 <h1>{gameStateMessage}</h1>
 
-                {playerJoined ? (
-                  <h3>Send them the game address above so they can join</h3>
-                ) : (
+                {playerJoined && <h3>Send them the game address above so they can join</h3>}
+                {!playerJoined && activeGameFromContract === "0x0000000000000000000000000000000000000000" && (
                   <Button style={{ marginTop: 8 }} onClick={joinGame}>
                     Join (1 MATIC)
                   </Button>
                 )}
-
-                {activeGameData.creator === address && (
+                {!playerJoined && activeGameFromContract !== "0x0000000000000000000000000000000000000000" && (
+                  <Popconfirm
+                    title="Are you sure to join this game? If you didn't finish your current game session you will lose your entry fee."
+                    onConfirm={joinGame}
+                    okText="Yes"
+                    cancelText="No"
+                  >
+                    <Button style={{ marginTop: 8 }}>Join (1 MATIC)</Button>
+                  </Popconfirm>
+                )}
+                {activeGameData && activeGameData.creator === address && (
                   <div style={{ margin: 8 }}>
                     <Button
                       type="primary"
@@ -488,7 +604,7 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
               <>
                 <div className="game-data">
                   <h2>Your Points: {activeGameData && activeGameData.points && activeGameData.points.toString()}</h2>
-                  <h2>Round {activeGameData.round.toString()}</h2>
+                  <h2>Round {activeGameData && activeGameData.round.toString()}</h2>
                   <h1>{gameStateMessage}</h1>
                 </div>
                 {!playerHasCommitted ? (
@@ -600,7 +716,7 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
                           />
                         </div>
                         <div style={{ margin: 0, width: 150 }}>
-                          <Button className="play-button" onClick={commit}>
+                          <Button className="play-button" onClick={commit} disabled={commitDisabled}>
                             Play
                           </Button>
                         </div>
@@ -628,7 +744,7 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
             {currentUIState === UIState.RevealPhase && (
               <>
                 <div style={{ margin: 8 }}>
-                  <h2>Round {activeGameData.round.toString()}</h2>
+                  <h2>Round {activeGameData && activeGameData.round.toString()}</h2>
                   <h1>{gameStateMessage}</h1>
                 </div>
                 <div id="hands-reveal" style={{ margin: 8 }}>
@@ -726,7 +842,7 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
                           <InputNumber value={total} min="0" max="200" step="1" placeholder="Total" disabled={true} />
                         </div>
                         <div style={{ margin: 0, width: 150 }}>
-                          <Button className="play-button" onClick={reveal}>
+                          <Button className="play-button" onClick={reveal} disabled={revealDisabled}>
                             Reveal
                           </Button>
                         </div>
@@ -813,6 +929,10 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
             itemLayout="vertical"
             size="large"
             pagination={{
+              onChange: page => {
+                setRoundsCurrentPage(page);
+              },
+              current: roundsCurrentPage,
               pageSize: 1,
             }}
             dataSource={gameRoundsData}
@@ -877,6 +997,74 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
           />
         </div>
       </div>
+      <Modal
+        visible={isFinishRoundModalVisible}
+        onOk={handleFinishRoundModalOk}
+        onCancel={handleFinishRoundModalOk}
+        footer={null}
+        closable={false}
+        className="modal-rounds"
+      >
+        <div class="rounds">
+          <div class="rounds-corners">
+            <ul>
+              <li></li>
+              <li></li>
+            </ul>
+            <ul>
+              <li></li>
+              <li></li>
+            </ul>
+          </div>
+          <div class="content">
+            <h3>{finishRoundModalTitle}</h3>
+            <h4>Total {endedRoundData && endedRoundData.total}</h4>
+            <List
+              grid={{ column: 2 }}
+              className="round-data"
+              dataSource={endedRoundData && endedRoundData.players}
+              renderItem={player => (
+                <List.Item>
+                  <Card
+                    title={
+                      <Row
+                        span={12}
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          justifyContent: "center",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Address noCopy={true} value={player.address} ensProvider={mainnetProvider} fontSize={12} />
+                      </Row>
+                    }
+                  >
+                    {player.revealed && (
+                      <div class="finished">
+                        <Image
+                          preview={false}
+                          style={{ height: 30, marginTop: 7 }}
+                          src={"/images/hands/" + player.number + ".png"}
+                          alt={player.number}
+                          title={player.number}
+                        />
+                        <span style={{ marginLeft: 5 }}>
+                          Total: {player.total} (<strong>{player.points}</strong>)
+                        </span>
+                      </div>
+                    )}
+                    {!player.revealed && <span class="noplayed">No played!</span>}
+                  </Card>
+                </List.Item>
+              )}
+            />
+            <Button className="continue-button" onClick={handleFinishRoundModalOk}>
+              Continue
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -236,6 +236,35 @@ code {
   margin-top: -15px;
 }
 
+.modal-rounds .ant-modal-content {
+  background: none;
+  font-family: "wheaton-capitals";
+  text-align: center;
+  box-shadow: none;
+}
+
+.modal-rounds h3 {
+  margin-top: 30px;
+}
+
+.modal-rounds .continue-button {
+  background-color: #d6372d;
+  color: white;
+  border-radius: 10px;
+  border-color: #d6372d;
+  box-shadow: 5px 5px rgb(66,61,69);
+  margin-top: 20px;
+  width: 130px;
+  height: 40px;
+  font-size: 20px;
+}
+
+.modal-rounds .continue-button:hover {
+  background-color: #d43026;
+  border-color: #d43026;
+  color: rgb(66,61,69);
+}
+
 .main .ant-btn {
   background-color: #d6372d;
   border-color: #d6372d;
@@ -320,6 +349,34 @@ code {
 }
 
 .main .commit-timeout .move-to-reveal-button:hover, .main .reveal-timeout .finish-round-button:hover {
+  background-color: #d43026;
+  border-color: #d43026;
+  color: rgb(66,61,69);
+}
+
+.ant-popconfirm .ant-popover-content .ant-popover-inner {
+  border-radius: 10px;
+  font-family: "wheaton-capitals";
+}
+
+.ant-popconfirm .ant-popover-content .ant-popover-inner .ant-btn:hover {
+  color: #d6372d;
+  border-color: #d6372d;
+}
+
+.ant-popconfirm .ant-popover-content .ant-popover-inner .ant-btn-primary {
+  background-color: #d6372d;
+  color: white;
+  border-radius: 10px;
+  border-color: #d6372d;
+  box-shadow: 5px 5px rgb(66,61,69);
+  margin-top: 20px;
+  width: 60px;
+  height: 30px;
+  font-size: 12px;
+}
+
+.ant-popconfirm .ant-popover-content .ant-popover-inner .ant-btn-primary:hover {
   background-color: #d43026;
   border-color: #d43026;
   color: rgb(66,61,69);

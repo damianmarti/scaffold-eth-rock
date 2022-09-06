@@ -14,6 +14,7 @@ type Game @entity {
   round: Int!
   createdAt: BigInt!
   gamePlayers: [GamePlayer!] @derivedFrom(field: "game")
+  gameRounds: [GameRound!] @derivedFrom(field: "game")
 }
 
 type GamePlayer @entity {

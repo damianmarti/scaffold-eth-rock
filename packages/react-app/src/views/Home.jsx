@@ -1,4 +1,4 @@
-import { Button, Divider, Input } from "antd";
+import { Button, Divider, Input, Popconfirm } from "antd";
 import React, { useState, useEffect } from "react";
 import { GameAddress } from "../components";
 import { useHistory } from "react-router-dom";
@@ -75,16 +75,38 @@ export default function Home({ address, mainnetProvider, tx, readContracts, writ
                     setJoinAddress(e.target.value);
                   }}
                 />
-                <Button style={{ marginTop: 8 }} onClick={joinGame}>
-                  Join (1 MATIC)
-                </Button>
+                {activeGame === "0x0000000000000000000000000000000000000000" ? (
+                  <Button style={{ marginTop: 8 }} onClick={joinGame}>
+                    Join (1 MATIC)
+                  </Button>
+                ) : (
+                  <Popconfirm
+                    title="Are you sure to join this game? If you didn't finish your current game session you will lose your entry fee."
+                    onConfirm={joinGame}
+                    okText="Yes"
+                    cancelText="No"
+                  >
+                    <Button style={{ marginTop: 8 }}>Join (1 MATIC)</Button>
+                  </Popconfirm>
+                )}
               </div>
               <Divider />
               <h2>Create new Game</h2>
               <div style={{ margin: 8 }}>
-                <Button style={{ marginTop: 8 }} onClick={createGame}>
-                  Create (1 MATIC)
-                </Button>
+                {activeGame === "0x0000000000000000000000000000000000000000" ? (
+                  <Button style={{ marginTop: 8 }} onClick={createGame}>
+                    Create (1 MATIC)
+                  </Button>
+                ) : (
+                  <Popconfirm
+                    title="Are you sure to create a new game? If you didn't finish your current game session you will lose your entry fee."
+                    onConfirm={createGame}
+                    okText="Yes"
+                    cancelText="No"
+                  >
+                    <Button style={{ marginTop: 8 }}>Create (1 MATIC)</Button>
+                  </Popconfirm>
+                )}
               </div>
               <Divider />
             </>
