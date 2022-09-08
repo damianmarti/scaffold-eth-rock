@@ -314,6 +314,12 @@ code {
   color: rgb(66,61,69);
 }
 
+.main .claim-prize-button {
+  width: 280px;
+  height: 50px;
+  font-size: 20px;
+}
+
 #hands-play .ant-radio-button-wrapper:hover, #hands-reveal .ant-radio-button-wrapper:hover {
   color: #d6372d;
 }

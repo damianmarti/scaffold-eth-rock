@@ -1,4 +1,4 @@
-import { Button, Divider, Input, Popconfirm } from "antd";
+import { Button, Divider, Input, Popconfirm, Spin } from "antd";
 import React, { useState, useEffect } from "react";
 import { GameAddress } from "../components";
 import { useHistory } from "react-router-dom";
@@ -6,6 +6,8 @@ import { useHistory } from "react-router-dom";
 export default function Home({ address, mainnetProvider, tx, readContracts, writeContracts, DEBUG }) {
   const [activeGame, setActiveGame] = useState();
   const [joinAddress, setJoinAddress] = useState();
+  const [createDisabled, setCreateDisabled] = useState(false);
+  const [joinDisabled, setJoinDisabled] = useState(false);
 
   const history = useHistory();
 
@@ -21,6 +23,7 @@ export default function Home({ address, mainnetProvider, tx, readContracts, writ
   }, [DEBUG, readContracts.Morra, address]);
 
   const joinGame = async () => {
+    setJoinDisabled(true);
     const entryFee = await readContracts.Morra.entryFee();
     try {
       const txCur = await tx(writeContracts.Morra.joinGame(joinAddress, { value: entryFee }));
@@ -31,8 +34,10 @@ export default function Home({ address, mainnetProvider, tx, readContracts, writ
     } catch (e) {
       console.log("Failed to join game", e);
     }
+    setJoinDisabled(false);
   };
   const createGame = async () => {
+    setCreateDisabled(true);
     const entryFee = await readContracts.Morra.entryFee();
     try {
       const txCur = await tx(writeContracts.Morra.createGame({ value: entryFee }));
@@ -43,6 +48,7 @@ export default function Home({ address, mainnetProvider, tx, readContracts, writ
     } catch (e) {
       console.log("Failed to create game", e);
     }
+    setCreateDisabled(false);
   };
 
   return (
@@ -76,9 +82,12 @@ export default function Home({ address, mainnetProvider, tx, readContracts, writ
                   }}
                 />
                 {activeGame === "0x0000000000000000000000000000000000000000" ? (
-                  <Button style={{ marginTop: 8 }} onClick={joinGame}>
-                    Join (1 MATIC)
-                  </Button>
+                  <>
+                    <Button style={{ marginTop: 8 }} onClick={joinGame} disabled={joinDisabled}>
+                      Join (1 MATIC)
+                    </Button>
+                    {joinDisabled && <Spin />}
+                  </>
                 ) : (
                   <Popconfirm
                     title="Are you sure to join this game? If you didn't finish your current game session you will lose your entry fee."
@@ -86,7 +95,10 @@ export default function Home({ address, mainnetProvider, tx, readContracts, writ
                     okText="Yes"
                     cancelText="No"
                   >
-                    <Button style={{ marginTop: 8 }}>Join (1 MATIC)</Button>
+                    <Button style={{ marginTop: 8 }} disabled={joinDisabled}>
+                      Join (1 MATIC)
+                    </Button>
+                    {joinDisabled && <Spin />}
                   </Popconfirm>
                 )}
               </div>
@@ -94,9 +106,12 @@ export default function Home({ address, mainnetProvider, tx, readContracts, writ
               <h2>Create new Game</h2>
               <div style={{ margin: 8 }}>
                 {activeGame === "0x0000000000000000000000000000000000000000" ? (
-                  <Button style={{ marginTop: 8 }} onClick={createGame}>
-                    Create (1 MATIC)
-                  </Button>
+                  <>
+                    <Button style={{ marginTop: 8 }} onClick={createGame} disabled={createDisabled}>
+                      Create (1 MATIC)
+                    </Button>
+                    {createDisabled && <Spin />}
+                  </>
                 ) : (
                   <Popconfirm
                     title="Are you sure to create a new game? If you didn't finish your current game session you will lose your entry fee."
@@ -104,7 +119,10 @@ export default function Home({ address, mainnetProvider, tx, readContracts, writ
                     okText="Yes"
                     cancelText="No"
                   >
-                    <Button style={{ marginTop: 8 }}>Create (1 MATIC)</Button>
+                    <Button style={{ marginTop: 8 }} disabled={createDisabled}>
+                      Create (1 MATIC)
+                    </Button>
+                    {createDisabled && <Spin />}
                   </Popconfirm>
                 )}
               </div>

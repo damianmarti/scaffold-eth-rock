@@ -1,4 +1,19 @@
-import { Button, Card, Divider, Row, Col, Radio, notification, InputNumber, Table, List, Image, Modal, Popconfirm } from "antd";
+import {
+  Button,
+  Card,
+  Divider,
+  Row,
+  Col,
+  Radio,
+  notification,
+  InputNumber,
+  Table,
+  List,
+  Image,
+  Modal,
+  Popconfirm,
+  Spin,
+} from "antd";
 import React, { useState, useEffect } from "react";
 import { useParams, useHistory } from "react-router-dom";
 import { Address, GameAddress } from "../components";
@@ -38,6 +53,8 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
   const [activeGameFromContract, setActiveGameFromContract] = useState();
   const [commitDisabled, setCommitDisabled] = useState(false);
   const [revealDisabled, setRevealDisabled] = useState(false);
+  const [joinDisabled, setJoinDisabled] = useState(false);
+  const [startDisabled, setStartDisabled] = useState(false);
   const [currentUIState, setCurrentUIState] = useState(UIState.NoGame);
 
   let revealTimeLeft = 180;
@@ -380,6 +397,7 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
   };
 
   const joinGame = async () => {
+    setJoinDisabled(true);
     const entryFee = await readContracts.Morra.entryFee();
     try {
       const txCur = await tx(writeContracts.Morra.joinGame(activeGame, { value: entryFee }));
@@ -387,10 +405,13 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
     } catch (e) {
       console.log("Failed to join game", e);
     }
+    setJoinDisabled(false);
   };
   const startGame = async () => {
+    setStartDisabled(true);
     const result = tx(writeContracts.Morra.startGame(activeGame), txnUpdate);
     await logTxn(result);
+    setStartDisabled(false);
   };
   const commit = async () => {
     if (!commitChoice) {
@@ -567,9 +588,12 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
 
                 {playerJoined && <h3>Send them the game address above so they can join</h3>}
                 {!playerJoined && activeGameFromContract === "0x0000000000000000000000000000000000000000" && (
-                  <Button style={{ marginTop: 8 }} onClick={joinGame}>
-                    Join (1 MATIC)
-                  </Button>
+                  <>
+                    <Button style={{ marginTop: 8 }} onClick={joinGame} disabled={joinDisabled}>
+                      Join (1 MATIC)
+                    </Button>
+                    {joinDisabled && <Spin />}
+                  </>
                 )}
                 {!playerJoined && activeGameFromContract !== "0x0000000000000000000000000000000000000000" && (
                   <Popconfirm
@@ -578,7 +602,10 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
                     okText="Yes"
                     cancelText="No"
                   >
-                    <Button style={{ marginTop: 8 }}>Join (1 MATIC)</Button>
+                    <Button style={{ marginTop: 8 }} disabled={joinDisabled}>
+                      Join (1 MATIC)
+                    </Button>
+                    {joinDisabled && <Spin />}
                   </Popconfirm>
                 )}
                 {activeGameData && activeGameData.creator === address && (
@@ -587,9 +614,11 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
                       type="primary"
                       style={{ marginTop: 8, marginBottom: 20, width: 250, height: 50, fontSize: 24 }}
                       onClick={startGame}
+                       disabled={startDisabled}
                     >
                       Start
                     </Button>
+                    {startDisabled && <Spin />}
                   </div>
                 )}
               </>
@@ -713,6 +742,7 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
                           <Button className="play-button" onClick={commit} disabled={commitDisabled}>
                             Play
                           </Button>
+                          {commitDisabled && <Spin />}
                         </div>
                       </div>
                     </div>
@@ -839,6 +869,7 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
                           <Button className="play-button" onClick={reveal} disabled={revealDisabled}>
                             Reveal
                           </Button>
+                          {revealDisabled && <Spin />}
                         </div>
                       </div>
                     </>
@@ -872,7 +903,7 @@ export default function GameUI({ address, mainnetProvider, tx, readContracts, wr
                   </h2>
                   <h1 style={{ marginBottom: 0 }}>{gameStateMessage}</h1>
                   {winner && (
-                    <Button style={{ marginTop: 8 }} onClick={claimPrize}>
+                    <Button className="claim-prize-button" style={{ marginTop: 8 }} onClick={claimPrize}>
                       Claim Prize 💰
                     </Button>
                   )}
